@@ -30,6 +30,7 @@
     public class Graph<T>
     {
         private Dictionary<string, Node<T>> _nodes = new Dictionary<string, Node<T>>();
+        public IEnumerable<Node<T>> Nodes => _nodes.Values;
 
         public void AddNode(string id, T data)
         {

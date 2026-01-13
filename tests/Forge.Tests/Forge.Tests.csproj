@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Forge.Core\Forge.Core.csproj" />
     <ProjectReference Include="..\..\src\Forge.Neural\Forge.Neural.csproj" />
+    <ProjectReference Include="..\..\src\Forge.Graph\Forge.Graph.csproj" />
   </ItemGroup>
 
 </Project>
