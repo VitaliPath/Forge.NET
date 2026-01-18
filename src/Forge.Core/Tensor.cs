@@ -5,16 +5,12 @@ namespace Forge.Core;
 
 public class Tensor
 {
-    // Data-Oriented Storage
-    // We use a flat array for cache locality.
     public readonly double[] Data;
     public readonly double[] Grad;
     
-    // Metadata
     public readonly int[] Shape;
     public readonly int[] Strides;
     
-    // Autograd Graph
     private List<Tensor> _children;
     private Action _backward;
 
@@ -22,10 +18,6 @@ public class Tensor
     {
         Shape = new int[] { rows, cols };
         
-        // Strides: How many steps in the flat array to move 1 unit in that dimension?
-        // For shape (2, 3):
-        // Row Stride = 3 (To go down a row, skip 3 elements)
-        // Col Stride = 1 (To go right a col, skip 1 element)
         Strides = new int[] { cols, 1 };
         
         int length = rows * cols;
@@ -36,14 +28,12 @@ public class Tensor
         _backward = () => { };
     }
 
-    // Helper to create random tensor (Gaussian initialization)
     public static Tensor Random(int rows, int cols, int seed = 0)
     {
         var rng = new Random(seed);
         var data = new double[rows * cols];
         for(int i = 0; i < data.Length; i++)
         {
-            // Box-Muller transform for normal distribution
             double u1 = 1.0 - rng.NextDouble();
             double u2 = 1.0 - rng.NextDouble();
             double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
@@ -52,7 +42,6 @@ public class Tensor
         return new Tensor(rows, cols, data);
     }
     
-    // Helper to create zeros
     public static Tensor Zeros(int rows, int cols)
     {
         return new Tensor(rows, cols, new double[rows * cols]);
@@ -151,31 +140,85 @@ public class Tensor
 
     public static Tensor operator +(Tensor a, Tensor b)
     {
-        // 1. Shape Check (Strict for now)
-        if (a.Data.Length != b.Data.Length)
-            throw new Exception("Shape mismatch: Tensors must have same size for addition.");
-
-        var result = new Tensor(a.Shape[0], a.Shape[1]);
-        result._children.Add(a);
-        result._children.Add(b);
-
-        // 2. Forward (Linear Loop - Systems Speed)
-        for (int i = 0; i < result.Data.Length; i++)
+        if (a.Shape[0] == b.Shape[0] && a.Shape[1] == b.Shape[1])
         {
-            result.Data[i] = a.Data[i] + b.Data[i];
+            var result = new Tensor(a.Shape[0], a.Shape[1]);
+            result._children.Add(a);
+            result._children.Add(b);
+
+            for (int i = 0; i < result.Data.Length; i++)
+            {
+                result.Data[i] = a.Data[i] + b.Data[i];
+            }
+
+            result._backward = () =>
+            {
+                for (int i = 0; i < result.Grad.Length; i++)
+                {
+                    a.Grad[i] += result.Grad[i];
+                    b.Grad[i] += result.Grad[i];
+                }
+            };
+            return result;
         }
 
-        // 3. Backward (Gradients flow equally to both)
-        result._backward = () =>
+        int outRows = Math.Max(a.Shape[0], b.Shape[0]);
+        int outCols = Math.Max(a.Shape[1], b.Shape[1]);
+
+        if ((a.Shape[0] != outRows && a.Shape[0] != 1) || 
+            (b.Shape[0] != outRows && b.Shape[0] != 1) ||
+            (a.Shape[1] != outCols && a.Shape[1] != 1) ||
+            (b.Shape[1] != outCols && b.Shape[1] != 1))
         {
-            for (int i = 0; i < result.Grad.Length; i++)
+            throw new Exception($"Incompatible shapes for broadcasting: {a.Shape[0]}x{a.Shape[1]} vs {b.Shape[0]}x{b.Shape[1]}");
+        }
+
+        var bResult = new Tensor(outRows, outCols);
+        bResult._children.Add(a);
+        bResult._children.Add(b);
+
+        for (int i = 0; i < outRows; i++)
+        {
+            for (int j = 0; j < outCols; j++)
             {
-                a.Grad[i] += 1.0 * result.Grad[i];
-                b.Grad[i] += 1.0 * result.Grad[i];
+                int rA = a.Shape[0] == 1 ? 0 : i;
+                int cA = a.Shape[1] == 1 ? 0 : j;
+                int idxA = rA * a.Strides[0] + cA * a.Strides[1];
+
+                int rB = b.Shape[0] == 1 ? 0 : i;
+                int cB = b.Shape[1] == 1 ? 0 : j;
+                int idxB = rB * b.Strides[0] + cB * b.Strides[1];
+
+                int idxOut = i * bResult.Strides[0] + j * bResult.Strides[1];
+                
+                bResult.Data[idxOut] = a.Data[idxA] + b.Data[idxB];
+            }
+        }
+
+        bResult._backward = () =>
+        {
+            for (int i = 0; i < outRows; i++)
+            {
+                for (int j = 0; j < outCols; j++)
+                {
+                    int rA = a.Shape[0] == 1 ? 0 : i;
+                    int cA = a.Shape[1] == 1 ? 0 : j;
+                    int idxA = rA * a.Strides[0] + cA * a.Strides[1];
+
+                    int rB = b.Shape[0] == 1 ? 0 : i;
+                    int cB = b.Shape[1] == 1 ? 0 : j;
+                    int idxB = rB * b.Strides[0] + cB * b.Strides[1];
+
+                    int idxOut = i * bResult.Strides[0] + j * bResult.Strides[1];
+                    double grad = bResult.Grad[idxOut];
+
+                    a.Grad[idxA] += grad;
+                    b.Grad[idxB] += grad;
+                }
             }
         };
 
-        return result;
+        return bResult;
     }
 
     public Tensor Tanh()
@@ -183,18 +226,15 @@ public class Tensor
         var result = new Tensor(this.Shape[0], this.Shape[1]);
         result._children.Add(this);
 
-        // 1. Forward
         for (int i = 0; i < this.Data.Length; i++)
         {
             result.Data[i] = Math.Tanh(this.Data[i]);
         }
 
-        // 2. Backward
         result._backward = () =>
         {
             for (int i = 0; i < this.Grad.Length; i++)
             {
-                // derivative of tanh(x) is (1 - tanh(x)^2)
                 double t = result.Data[i]; 
                 double localGrad = (1.0 - t * t);
                 this.Grad[i] += localGrad * result.Grad[i];
@@ -206,7 +246,6 @@ public class Tensor
     
     public void Backward()
     {
-        // 1. Topological Sort
         var topo = new List<Tensor>();
         var visited = new HashSet<Tensor>();
 
@@ -223,11 +262,21 @@ public class Tensor
 
         BuildTopo(this);
 
-        // 2. Initialize Gradient of the root (Loss) to 1.0 (vector of 1s)
-        // Note: Usually loss is a scalar (1x1), so this fills it with 1.
-        for (int i = 0; i < Grad.Length; i++) Grad[i] = 1.0;
+        bool isZero = true;
+        for (int i = 0; i < Grad.Length; i++)
+        {
+            if (Grad[i] != 0.0) 
+            {
+                isZero = false; 
+                break;
+            }
+        }
 
-        // 3. Reverse execution
+        if (isZero)
+        {
+            for (int i = 0; i < Grad.Length; i++) Grad[i] = 1.0;
+        }
+
         topo.Reverse();
         foreach (var t in topo)
         {
@@ -248,15 +297,10 @@ public class Tensor
 
     public Tensor Transpose()
     {
-        // 1. Swap Shapes: (2, 3) -> (3, 2)
         var newShape = new int[] { Shape[1], Shape[0] };
         
-        // 2. Swap Strides: (3, 1) -> (1, 3)
-        // Now "moving down a row" in the new view means 
-        // "moving right a column" in the original data.
         var newStrides = new int[] { Strides[1], Strides[0] };
         
-        // 3. SHARE the data (Zero Copy)
         return new Tensor(newShape, newStrides, Data, Grad);
     }    
 }

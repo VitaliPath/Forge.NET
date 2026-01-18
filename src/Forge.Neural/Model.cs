@@ -2,35 +2,34 @@
 
 namespace Forge.Neural;
 
-public interface IModelLayer
+public interface IModule
 {
-    Value[] Forward(Value[] input);
-    List<Value> Parameters();
+    Tensor Forward(Tensor input);
+    List<Tensor> Parameters();
 }
 
-public class Model : IModelLayer
+public class Sequential : IModule
 {
-    private List<IModelLayer> _layers = new List<IModelLayer>();
+    private List<IModule> _layers = new List<IModule>();
 
-    public void Add(IModelLayer layer)
+    public void Add(IModule layer)
     {
         _layers.Add(layer);
     }
 
-    public Value[] Forward(Value[] input)
+    public Tensor Forward(Tensor input)
     {
         var current = input;
-        for (var i = 0; i < _layers.Count(); i++)
+        foreach (var layer in _layers)
         {
-            current = _layers[i].Forward(current);
+            current = layer.Forward(current);
         }
-
         return current;
     }
 
-    public List<Value> Parameters()
+    public List<Tensor> Parameters()
     {
-        var paramsList = new List<Value>();
+        var paramsList = new List<Tensor>();
         foreach (var layer in _layers)
         {
             paramsList.AddRange(layer.Parameters());

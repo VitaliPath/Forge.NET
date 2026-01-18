@@ -1,70 +1,57 @@
 ﻿using System.Diagnostics;
-using Forge.Core; // Now uses Tensor
+using Forge.Core;
+using Forge.Neural;
 
-Console.WriteLine("⚔️  SCALAR vs TENSOR Arena ⚔️");
+Console.WriteLine("⚔️  FORGE.NEURAL INTEGRATION TEST  ⚔️");
 Console.WriteLine("-----------------------------------");
 
-const int EPOCHS = 10;
-const int BATCH_SIZE = 32;
-const int INPUT_DIM = 16;
-const int HIDDEN_DIM = 32;
+var x_data = new double[] { -1, -1, -1, 1, 1, -1, 1, 1 };
+var t_inputs = new Tensor(4, 2, x_data);
 
-// --- TENSOR SETUP ---
-Console.WriteLine("\n[Tensor Engine] Initializing...");
+var y_data = new double[] { -1, 1, 1, -1 };
+var t_targets = new Tensor(4, 1, y_data);
 
-// 1. Data (One big Tensor instead of List<Value[]>)
-var t_inputs = Tensor.Random(BATCH_SIZE, INPUT_DIM, seed: 1);
-var t_targets = Tensor.Random(BATCH_SIZE, 1, seed: 2);
+var model = new Sequential();
+model.Add(new Linear(2, 8, seed: 100));
+model.Add(new Tanh());
+model.Add(new Linear(8, 1, seed: 200));
+model.Add(new Tanh());
 
-// 2. Weights (Random initialization)
-// Layer 1: (16, 32)
-var w1 = Tensor.Random(INPUT_DIM, HIDDEN_DIM, seed: 3);
-// Bias 1: (32, 32) - Workaround until Broadcasting is implemented
-var b1 = Tensor.Zeros(BATCH_SIZE, HIDDEN_DIM); 
+var optimizer = new SGD(0.2);
 
-// Layer 2: (32, 1)
-var w2 = Tensor.Random(HIDDEN_DIM, 1, seed: 4);
-var b2 = Tensor.Zeros(BATCH_SIZE, 1);
+Console.WriteLine("[Forge.Neural] Training...");
+var sw = Stopwatch.StartNew();
 
-// 3. Training Loop
-Console.WriteLine("[Tensor Engine] Starting Training...");
-var sw = new Stopwatch();
-long initialGc = GC.CollectionCount(0);
-
-sw.Start();
-for (int epoch = 0; epoch < EPOCHS; epoch++)
+for (int epoch = 0; epoch < 1000; epoch++)
 {
-    // Forward Pass
-    // Layer 1: X @ W1 + B1
-    var h1 = t_inputs.MatMul(w1) + b1;
-    var a1 = h1.Tanh();
-    
-    // Layer 2: A1 @ W2 + B2
-    var outVal = a1.MatMul(w2) + b2;
+    var pred = model.Forward(t_inputs);
 
-    // MSE Loss
-    // (Out - Target)^2
-    // Note: We need a 'Subtract' and 'Square' or just do it manually for now.
-    // Let's implement a quick inline MSE check manually to keep lines distinct
-    // Actually, let's just Backprop from the output directly to keep it simple 
-    // (pretend dL/dOut = 1.0) for pure speed test.
+    double totalLoss = 0.0;
     
-    // Backward Pass
-    // Reset Gradients (Manual for now)
-    Array.Clear(w1.Grad); Array.Clear(b1.Grad);
-    Array.Clear(w2.Grad); Array.Clear(b2.Grad);
-    
-    outVal.Backward();
-    
-    // Step (SGD)
-    // w1.Data -= lr * w1.Grad ... (Skip for benchmark, math is negligible)
-    
-    Console.Write(".");
+    optimizer.ZeroGrad(model.Parameters());
+    Array.Clear(t_inputs.Grad);
+
+    for(int i=0; i < pred.Data.Length; i++)
+    {
+        double diff = pred.Data[i] - t_targets.Data[i];
+        totalLoss += diff * diff;
+        pred.Grad[i] = 2.0 * diff; 
+    }
+
+    pred.Backward();
+
+    optimizer.Step(model.Parameters());
+
+    if (epoch % 100 == 0) Console.WriteLine($"Epoch {epoch}: Loss = {totalLoss:F4}");
 }
 sw.Stop();
 
-long finalGc = GC.CollectionCount(0);
-Console.WriteLine("\n\n🏆 TENSOR RESULTS 🏆");
-Console.WriteLine($"Total Time:      {sw.ElapsedMilliseconds} ms");
-Console.WriteLine($"Avg Time/Epoch:  {sw.ElapsedMilliseconds / (double)EPOCHS:F2} ms");
-Console.WriteLine($"GC Collections:  {finalGc - initialGc} (Gen 0)");
+Console.WriteLine($"\nFinal Loss: {GetLoss(model.Forward(t_inputs), t_targets):F4}");
+Console.WriteLine($"Time: {sw.ElapsedMilliseconds} ms");
+
+double GetLoss(Tensor p, Tensor t)
+{
+    double sum = 0;
+    for(int i=0; i<p.Data.Length; i++) sum += Math.Pow(p.Data[i] - t.Data[i], 2);
+    return sum;
+}

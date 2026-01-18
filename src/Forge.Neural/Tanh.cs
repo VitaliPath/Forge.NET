@@ -2,20 +2,15 @@ using Forge.Core;
 
 namespace Forge.Neural;
 
-public class Tanh : IModelLayer
+public class Tanh : IModule
 {
-    public Value[] Forward(Value[] input)
+    public Tensor Forward(Tensor input)
     {
-        var output = new Value[input.Length];
-        for (var i = 0; i < input.Length; i++)
-        {
-            output[i] = input[i].Tanh();
-        }
-        return output;
+        return input.Tanh();
     }
 
-    public List<Value> Parameters()
+    public List<Tensor> Parameters()
     {
-        return new List<Value>();
+        return new List<Tensor>();
     }
 }

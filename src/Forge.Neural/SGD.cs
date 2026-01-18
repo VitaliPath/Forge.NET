@@ -2,34 +2,31 @@ using Forge.Core;
 
 namespace Forge.Neural;
 
-public interface IOptimizer
+public class SGD
 {
-    void Step(IEnumerable<Value> parameters);
-    void ZeroGrad(IEnumerable<Value> parameters);
-}
-
-public class SGD : IOptimizer
-{
-    private double _learningRate;
+    private double _lr;
 
     public SGD(double learningRate)
     {
-        _learningRate = learningRate;
+        _lr = learningRate;
     }
 
-    public void Step(IEnumerable<Value> parameters)
+    public void Step(List<Tensor> parameters)
     {
         foreach (var p in parameters)
         {
-            p.Data -= p.Grad * _learningRate;
+            for(int i=0; i<p.Data.Length; i++)
+            {
+                p.Data[i] -= _lr * p.Grad[i];
+            }
         }
     }
 
-    public void ZeroGrad(IEnumerable<Value> parameters)
+    public void ZeroGrad(List<Tensor> parameters)
     {
         foreach (var p in parameters)
         {
-            p.Grad = 0.0;
+            Array.Clear(p.Grad);
         }
     }
 }
