@@ -165,7 +165,7 @@ public class Tensor
         int outRows = Math.Max(a.Shape[0], b.Shape[0]);
         int outCols = Math.Max(a.Shape[1], b.Shape[1]);
 
-        if ((a.Shape[0] != outRows && a.Shape[0] != 1) || 
+        if ((a.Shape[0] != outRows && a.Shape[0] != 1) ||
             (b.Shape[0] != outRows && b.Shape[0] != 1) ||
             (a.Shape[1] != outCols && a.Shape[1] != 1) ||
             (b.Shape[1] != outCols && b.Shape[1] != 1))
@@ -190,7 +190,7 @@ public class Tensor
                 int idxB = rB * b.Strides[0] + cB * b.Strides[1];
 
                 int idxOut = i * bResult.Strides[0] + j * bResult.Strides[1];
-                
+
                 bResult.Data[idxOut] = a.Data[idxA] + b.Data[idxB];
             }
         }
@@ -219,6 +219,32 @@ public class Tensor
         };
 
         return bResult;
+    }
+
+    public Tensor Relu()
+    {
+        var result = new Tensor(this.Shape[0], this.Shape[1]);
+        result._children.Add(this);
+
+        // 1. Forward
+        for (int i = 0; i < this.Data.Length; i++)
+        {
+            double val = this.Data[i];
+            result.Data[i] = val > 0 ? val : 0;
+        }
+
+        // 2. Backward
+        result._backward = () =>
+        {
+            for (int i = 0; i < this.Grad.Length; i++)
+            {
+                // Gradient flows only if input was > 0
+                double localGrad = result.Data[i] > 0 ? 1.0 : 0.0;
+                this.Grad[i] += localGrad * result.Grad[i];
+            }
+        };
+
+        return result;
     }
 
     public Tensor Tanh()
