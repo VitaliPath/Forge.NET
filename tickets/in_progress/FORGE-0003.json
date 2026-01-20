@@ -1,0 +1,23 @@
+{
+  "id": "FORGE-0003",
+  "title": "Algorithms - Improve Tokenizer for Hyphenated Words",
+  "overview": "DEEP DIVE: NLP Tokenization & Recall Failures.\n\n1. THE PROBLEM: The 'Zero-Byte' Gap.\nDuring KinetiGraph integration, a query for 'zero byte' failed to retrieve a ticket explicitly mentioning 'zero-byte'.\n- The current tokenizer splits only on space (` `). \n- The token 'zero-byte' is treated as a unique entity, orthogonal to the vector for 'zero' or 'byte'.\n- Result: Cosine Similarity is 0.0.\n\n2. THE SOLUTION: Expanded Delimiters.\nWe must treat hyphens (`-`) as separators. This standardizes compound words into their constituent parts, increasing Recall at the cost of losing some specific phrase meaning (which is acceptable for a BoW model).",
+  "mathematical_context": "Let $V_{query} = [1, 1]$ ('zero', 'byte') and $V_{doc} = [0, 0, 1]$ (..., 'zero-byte').\n$V_{query} \\cdot V_{doc} = 0$. \n\nAfter fix: $V_{doc} = [1, 1, 0]$.\n$V_{query} \\cdot V_{doc} = 2$.",
+  "acceptance_criteria": [
+    "Tokenizer splits 'zero-byte' into ['zero', 'byte']",
+    "Regression: Standard sentences still tokenize correctly",
+    "KinetiGraph query 'zero byte' returns SCView-102"
+  ],
+  "testing_scenarios": [
+    "Input: 'zero-byte' -> Output: ['zero', 'byte']",
+    "Input: 'pre-arranged sub' -> Output: ['pre', 'arranged', 'sub']"
+  ],
+  "Component": "BagOfWordsEncoder.cs",
+  "Subsystem": "Algorithms",
+  "fields": {
+    "complexity": "1",
+    "estimation": "15m"
+  },
+  "state": "In Progress",
+  "created": 1768920000000
+}

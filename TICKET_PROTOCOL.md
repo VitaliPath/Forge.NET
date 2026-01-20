@@ -1,6 +1,6 @@
 # 🎫 Forge Ticket Protocol
 
-**Goal:** Treat mathematical operators and graph algorithms as "Feature Requests." All work must be tracked to enable automated documentation and structural analysis.
+**Goal:** Treat mathematical operators and graph algorithms as "Feature Requests." All work must be tracked to enable automated documentation and structural analysis via KinetiGraph.
 
 ## 1. The Workflow Rules
 
@@ -8,7 +8,7 @@
 2.  **Commit Discipline:** Every commit message must start with the Ticket ID.
     * *Format:* `FORGE-0000: <Type> - <Brief Description>`
     * *Example:* `FORGE-0012: Feat - Implement Softmax backward pass`
-3.  **The Ontology Link:** Every ticket must define the **Module** (e.g., `Forge.Core`) and **Component** (e.g., `Tensor.cs`) it affects.
+3.  **The Ontology Link:** Every ticket must define the **Subsystem** (e.g., `Neural`) and **Component** (e.g., `Tensor.cs`) it affects. This enables KinetiGraph to build topology maps.
 4.  **Atomicity:** Tickets should map to a single mathematical concept or algorithmic unit.
 5.  **The Expert Review Standard (The Deep Dive):**
     * **Novice-Ready:** The Overview must provide enough context that a developer unfamiliar with the specific math could implement it.
@@ -17,7 +17,8 @@
 
 ## 2. Ticket Schema (JSON)
 
-We map the "Expert Review" fields to our JSON structure:
+We map the "Expert Review" fields to our JSON structure.
+* **Note:** `Component` and `Subsystem` are root fields to allow KinetiGraph to auto-generate Hub Nodes.
 
 ```json
 {
@@ -33,11 +34,11 @@ We map the "Expert Review" fields to our JSON structure:
     "Verify inputs [-1, 0, 1] -> [0, 0, 1]",
     "Gradient check against numerical approximation"
   ],
+  "Component": "Relu.cs",
+  "Subsystem": "Neural",
   "fields": {
-    "module": "Forge.Neural",
     "complexity": "1",
-    "estimation": "30m",
-    "component": "Relu.cs"
+    "estimation": "30m"
   },
   "state": "In Progress",
   "created": 1768600000000
