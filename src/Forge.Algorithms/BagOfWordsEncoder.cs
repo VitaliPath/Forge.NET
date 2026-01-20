@@ -69,7 +69,7 @@ public class BagOfWordsEncoder
 
     private string[] Tokenize(string text)
     {
-        return text.ToLower().Split(new[] { ' ', '.', ',', '!', '?', '\t', '\n', '\r' }, 
+        return text.ToLower().Split(new[] { ' ', '-', '.', ',', '!', '?', '\t', '\n', '\r' }, 
                                     StringSplitOptions.RemoveEmptyEntries);
     }
 }
