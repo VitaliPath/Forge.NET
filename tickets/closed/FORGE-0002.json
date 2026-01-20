@@ -1,0 +1,25 @@
+{
+  "id": "FORGE-0002",
+  "title": "Algorithms - Implement BagOfWordsEncoder & CosineSimilarity",
+  "overview": "DEEP DIVE: Vector Space Models (VSM).\n\n1. THE PROBLEM: Symbol Mismatch.\nComputers cannot calculate the distance between strings. The string 'Login failed' and 'Auth error' share 0 characters, yet they are semantically identical. We need a way to map discrete symbols (words) to a continuous mathematical space.\n\n2. THE SOLUTION: Bag of Words (BoW).\nBoW is the foundational VSM. It represents a document as a sparse vector where every dimension corresponds to a specific word in the vocabulary. The value is the frequency (Count).\n- If Vocab = ['bug', 'login', 'error']\n- 'Login bug' -> [1, 1, 0]\n\n3. THE METRIC: Cosine Similarity.\nEuclidean distance fails in high dimensions (Curse of Dimensionality) and is sensitive to document length. We use Cosine Similarity, which measures the ANGLE between two vectors, ignoring their magnitude.\n- Formula: Sim(A, B) = (A . B) / (||A|| * ||B||)\n- Range: 1.0 (Identical direction) to 0.0 (Orthogonal/Unrelated) to -1.0 (Opposite).",
+  "mathematical_context": "Cosine Similarity:\n$$ \\text{similarity} = \\cos(\\theta) = \\frac{\\mathbf{A} \\cdot \\mathbf{B}}{\\|\\mathbf{A}\\| \\|\\mathbf{B}\\|} = \\frac{\\sum_{i=1}^{n} A_i B_i}{\\sqrt{\\sum_{i=1}^{n} A_i^2} \\sqrt{\\sum_{i=1}^{n} B_i^2}} $$",
+  "acceptance_criteria": [
+    "Encoder converts string to Tensor (1, VocabSize)",
+    "Encoder handles unknown words (OOV) gracefully (ignore or [UNK] token)",
+    "CosineSimilarity returns 1.0 for identical vectors",
+    "CosineSimilarity returns 0.0 for orthogonal vectors (no shared words)",
+    "Implementation uses Tensor primitives (MatMul/Sum), not C# loops, where possible"
+  ],
+  "testing_scenarios": [
+    "Vocab: ['a', 'b']. Text 'a b' -> [1, 1]. Text 'a' -> [1, 0]. Similarity should be ~0.707 (45 degrees).",
+    "Text 'apple' vs 'banana' (disjoint) -> Similarity 0.0"
+  ],
+  "fields": {
+    "module": "Forge.Algorithms",
+    "complexity": "2",
+    "estimation": "1h",
+    "component": "BagOfWordsEncoder.cs"
+  },
+  "state": "In Progress",
+  "created": 1768840000000
+}
