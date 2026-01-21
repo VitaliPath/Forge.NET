@@ -50,9 +50,15 @@
 
 ---
 
-# Field Completion
+# KinetiGraph Topology (Root Fields)
+*These fields define where this node lives in the Knowledge Graph.*
 
-* **Module:** (e.g., `Forge.Core`, `Forge.Neural`)
-* **Complexity:** (1-5)
+* **Component:** The specific file or class being modified. (e.g., `Tensor.cs`, `Relu.cs`)
+* **Subsystem:** The architectural layer. (e.g., `Core`, `Neural`, `Algorithms`)
+
+# Process Metadata (Fields Object)
+*These fields track the administrative state.*
+
+* **Module:** The Namespace/Project. (e.g., `Forge.Core`, `Forge.Neural`)
+* **Complexity:** (1-5) - *1 = Trivial, 5 = Architecture Change*
 * **Estimation:** (Hours/Minutes)
-* **Component:** (e.g., `Tensor.cs`, `SGD.cs`)
