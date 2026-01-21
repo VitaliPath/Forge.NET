@@ -50,14 +50,14 @@
 
 ---
 
-# KinetiGraph Topology (Root Fields)
-*These fields define where this node lives in the Knowledge Graph.*
+# System Location (Root Fields)
+*Define where this change physically lives in the codebase.*
 
 * **Component:** The specific file or class being modified. (e.g., `Tensor.cs`, `Relu.cs`)
 * **Subsystem:** The architectural layer. (e.g., `Core`, `Neural`, `Algorithms`)
 
 # Process Metadata (Fields Object)
-*These fields track the administrative state.*
+*Administrative tracking.*
 
 * **Module:** The Namespace/Project. (e.g., `Forge.Core`, `Forge.Neural`)
 * **Complexity:** (1-5) - *1 = Trivial, 5 = Architecture Change*
