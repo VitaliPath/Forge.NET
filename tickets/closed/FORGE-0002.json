@@ -14,12 +14,13 @@
     "Vocab: ['a', 'b']. Text 'a b' -> [1, 1]. Text 'a' -> [1, 0]. Similarity should be ~0.707 (45 degrees).",
     "Text 'apple' vs 'banana' (disjoint) -> Similarity 0.0"
   ],
+  "Component": "BagOfWordsEncoder.cs",
+  "Subsystem": "Algorithms",
   "fields": {
     "module": "Forge.Algorithms",
     "complexity": "2",
-    "estimation": "1h",
-    "component": "BagOfWordsEncoder.cs"
+    "estimation": "1h"
   },
-  "state": "In Progress",
+  "state": "Closed",
   "created": 1768840000000
 }

@@ -15,12 +15,13 @@
     "ReLU Backward: GradOutput [1, 1, 1] w/ Input [-5, 0, 5] -> GradInput [0, 0, 1]",
     "Linear Shape Check: Input (32, 10) @ Weight (10, 5) -> Output (32, 5)"
   ],
+  "Component": "Relu.cs",
+  "Subsystem": "Neural",
   "fields": {
     "module": "Forge.Neural",
     "complexity": "2",
-    "estimation": "1h",
-    "component": "Relu.cs"
+    "estimation": "1h"
   },
-  "state": "In Progress",
+  "state": "Closed",
   "created": 1768761000000
 }
