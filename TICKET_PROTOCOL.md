@@ -18,7 +18,7 @@
 ## 2. Ticket Schema (JSON)
 
 We map the "Expert Review" fields to our JSON structure.
-* **Note:** `Component` and `Subsystem` are root fields to allow KinetiGraph to auto-generate Hub Nodes.
+* **Note:** `Component` and `Subsystem` are root fields to allow for direct node-mapping in graph-based documentation systems.
 
 ```json
 {
