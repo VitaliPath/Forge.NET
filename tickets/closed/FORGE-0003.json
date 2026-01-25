@@ -12,7 +12,7 @@
     "Input: 'zero-byte' -> Output: ['zero', 'byte']",
     "Input: 'pre-arranged sub' -> Output: ['pre', 'arranged', 'sub']"
   ],
-  "Component": "BagOfWordsEncoder.cs",
+  "Component": "Tokenizer",
   "Subsystem": "Algorithms",
   "fields": {
     "complexity": "1",
