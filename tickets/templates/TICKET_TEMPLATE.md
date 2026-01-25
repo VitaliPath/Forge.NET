@@ -51,9 +51,9 @@
 ---
 
 # System Location (Root Fields)
-*Define where this change physically lives in the codebase.*
+*Define where this change conceptually lives in the system topology.*
 
-* **Component:** The specific file or class being modified. (e.g., `Tensor.cs`, `Relu.cs`)
+* **Component:** The logical primitive, concept, or feature being modified. Do NOT use file names. (e.g., `Tensor`, `Optimizer`, `Bag of Words`)
 * **Subsystem:** The architectural layer. (e.g., `Core`, `Neural`, `Algorithms`)
 
 # Process Metadata (Fields Object)
