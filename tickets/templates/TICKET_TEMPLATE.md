@@ -1,7 +1,7 @@
 # Ticket Title Format
-`{{Module}} - {{BriefDescription}}`
-* **Example:** `Neural - Implement CrossEntropyLoss`
-* **Example:** `Core - Optimize Tensor Strides for Broadcasting`
+`{{Component}} - {{BriefDescription}}`
+* **Example:** `Activation - Implement CrossEntropyLoss`
+* **Example:** `Tensor - Optimize Tensor Strides for Broadcasting`
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "id": "FORGE-0001",
-  "title": "Neural - Implement ReLU & Linear Cleanup",
+  "title": "Activation - Implement ReLU & Linear Cleanup",
   "overview": "DEEP DIVE: The Activation Function Landscape.\n\n1. THE PROBLEM: The Vanishing Gradient.\nHistorically, neural networks used Sigmoid or Tanh activation functions. These 'squashing' functions map input to (0,1) or (-1,1). While non-linear, they suffer from 'Saturation': at very high or low values, the slope (derivative) approaches zero. During Backpropagation, we multiply gradients by this slope. If the slope is 0.0001, the gradient vanishes, and the network stops learning deep layers.\n\n2. THE SOLUTION: Rectified Linear Units (ReLU).\nProposed by Nair & Hinton (2010) and popularized by Krizhevsky et al. (2012) in AlexNet, ReLU is defined as f(x) = max(0, x).\n- For x > 0, the slope is exactly 1.0. This means gradients flow through the network unchanged, solving the vanishing gradient problem.\n- For x <= 0, the value is 0 (Sparcity). This creates 'dead neurons', which can be beneficial for model capacity but requires careful initialization.\n\n3. LINEAR LAYER IMPLICATIONS:\nWith the migration to the Tensor engine, the Linear layer (y = xA + b) must now strictly handle Batch processing via Broadcasting. The Bias vector (1, N) must implicitly expand to match the Input Batch (B, N).",
   "mathematical_context": "Forward: f(x_i) = \\max(0, x_i)\nBackward: \\frac{\\partial L}{\\partial x_i} = \\frac{\\partial L}{\\partial y_i} \\cdot \\mathbb{1}(x_i > 0)",
   "acceptance_criteria": [
