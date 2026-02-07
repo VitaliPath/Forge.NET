@@ -10,7 +10,7 @@ public class BagOfWordsEncoder
     {
         Vocab = new Dictionary<string, int>();
         int index = 0;
-        
+
         foreach (var text in corpus)
         {
             var words = Tokenize(text);
@@ -22,6 +22,22 @@ public class BagOfWordsEncoder
                 }
             }
         }
+    }
+
+    public List<string> GetTopWords(double[] vector, int count)
+    {
+        if (vector.Length != Vocab.Count)
+            throw new ArgumentException($"Vector size ({vector.Length}) must match Vocab size ({Vocab.Count}).");
+
+        return vector
+            .Select((weight, index) => new { 
+                Word = Vocab.ElementAt(index).Key, 
+                Weight = weight 
+            })
+            .OrderByDescending(x => x.Weight)
+            .Take(count)
+            .Select(x => x.Word)
+            .ToList();
     }
 
     public Tensor Encode(string text)

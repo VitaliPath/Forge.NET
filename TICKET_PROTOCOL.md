@@ -13,7 +13,7 @@
 5.  **The Expert Review Standard (The Deep Dive):**
     * **Novice-Ready:** The Overview must provide enough context that a developer unfamiliar with the specific math could implement it.
     * **First Principles:** Explain the *Why*, not just the *What*. (e.g., "Why do we need this Activation Function?").
-    * **Citations:** Must include references to relevant academic papers or standard literature.
+    * **Citations:** Must include references to a specific, consumable source (a single paper, article, or sub-section). Do not cite entire books. The goal is a 15-minute "Deep Dive" for the developer, not a semester course.
 
 ## 2. Ticket Schema (JSON)
 
