@@ -6,6 +6,15 @@ public class BagOfWordsEncoder
 {
     public readonly Dictionary<string, int> Vocab;
 
+    private static readonly HashSet<string> StopWords = new() 
+    { 
+        "the", "is", "and", "a", "of", "to", "in", "for", "with", "it", "on", 
+        "this", "that", "by", "from", "an", "be", "as", "are", "at", "has",
+        "can", "will", "your", "our", "their", "all", "but", "not", "which",
+        "was", "were", "been", "have", "had", "does", "did", "how", "where",
+        "when", "why", "who"
+    };
+
     public BagOfWordsEncoder(IEnumerable<string> corpus)
     {
         Vocab = new Dictionary<string, int>();
@@ -85,7 +94,33 @@ public class BagOfWordsEncoder
 
     private string[] Tokenize(string text)
     {
-        return text.ToLower().Split(new[] { ' ', '-', '.', ',', '!', '?', '\t', '\n', '\r' }, 
-                                    StringSplitOptions.RemoveEmptyEntries);
+        if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
+
+        // 1. Lowercase and Split on whitespace and punctuation
+        var rawTokens = text.ToLower().Split(new[] { 
+            ' ', '-', '.', ',', '!', '?', ':', ';', '(', ')', '[', ']', 
+            '{', '}', '"', '\'', '`', '/', '\\', '\t', '\n', '\r', '*', '+', '=', '<', '>' 
+        }, StringSplitOptions.RemoveEmptyEntries);
+
+        var filteredTokens = new List<string>();
+
+        foreach (var token in rawTokens)
+        {
+            // 2. SIGNAL VALIDATION
+            // Rule A: Remove Stop Words
+            if (StopWords.Contains(token)) continue;
+
+            // Rule B: Remove pure numbers/digits (e.g., "0", "17687")
+            if (double.TryParse(token, out _)) continue;
+
+            // Rule C: Minimum Length (removes "i", "x", "y" unless specific to your context)
+            if (token.Length < 2) continue;
+
+            // Rule D: LaTeX/Markdown Noise removal (removes "max", "frac", etc if desired, 
+            // though 'relu' is safe)
+            filteredTokens.Add(token);
+        }
+
+        return filteredTokens.ToArray();
     }
 }
