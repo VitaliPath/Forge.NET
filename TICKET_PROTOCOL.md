@@ -29,9 +29,9 @@ We mimic the standard ingestion structure used for enterprise ticketing systems.
 
 | Property | Description |
 | --- | --- |
-| `id` | Unique identifier (e.g., `FORGE-0001`) |
-| `summary` | Ticket title following the `{{Component}} - {{BriefDescription}}` format |
-| `description` | The full Markdown body containing the Expert Review sections |
+| `Id` | Unique identifier (e.g., `FORGE-0001`) |
+| `Summary` | Ticket title following the `{{Component}} - {{BriefDescription}}` format |
+| `Description` | The full Markdown body containing the Expert Review sections |
 | `Component` | The logical primitive, concept, or feature being modified |
 | `Subsystem` | The architectural layer (e.g., `Core`, `Neural`, `Algorithms`) |
 | `Complexity` | Numeric value (1-5) representing implementation difficulty |
@@ -42,9 +42,9 @@ We mimic the standard ingestion structure used for enterprise ticketing systems.
 
 ```json
 {
-  "id": "FORGE-0001",
-  "summary": "Activation - Implement ReLU",
-  "description": "## Overview & Deep Dive\n\nDeep dive into the Vanishing Gradient problem (Sigmoid/Tanh) and how Rectified Linear Units (Nair & Hinton, 2010) solve this via constant gradients for positive inputs.\n\n## Mathematical Specification\n\nForward: $f(x) = \\max(0, x)$. \nBackward: $\\frac{\\partial L}{\\partial x} = 1$ if $x > 0$, else $0$.\n\n## Acceptance Criteria / How to Reproduce\n\n* [ ] Forward pass returns 0 for negative inputs\n* [ ] Backward pass masks gradients where input was negative\n\n## Developer Implementation\n\n**Repository**\n`Forge.NET`\n\n### Computational Logic\n\nUse element-wise comparison logic; ensure gradient is 0 at the discontinuity (x=0) for stability.",
+  "Id": "FORGE-0001",
+  "Summary": "Activation - Implement ReLU",
+  "Description": "## Overview & Deep Dive\n\nDeep dive into the Vanishing Gradient problem (Sigmoid/Tanh) and how Rectified Linear Units (Nair & Hinton, 2010) solve this via constant gradients for positive inputs.\n\n## Mathematical Specification\n\nForward: $f(x) = \\max(0, x)$. \nBackward: $\\frac{\\partial L}{\\partial x} = 1$ if $x > 0$, else $0$.\n\n## Acceptance Criteria / How to Reproduce\n\n* [ ] Forward pass returns 0 for negative inputs\n* [ ] Backward pass masks gradients where input was negative\n\n## Developer Implementation\n\n**Repository**\n`Forge.NET`\n\n### Computational Logic\n\nUse element-wise comparison logic; ensure gradient is 0 at the discontinuity (x=0) for stability.",
   "Component": "Activation",
   "Subsystem": "Neural",
   "Complexity": "1",
