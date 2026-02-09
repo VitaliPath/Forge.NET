@@ -269,7 +269,7 @@ public class Tensor
 
         return result;
     }
-    
+
     public void Backward()
     {
         var topo = new List<Tensor>();
@@ -291,9 +291,9 @@ public class Tensor
         bool isZero = true;
         for (int i = 0; i < Grad.Length; i++)
         {
-            if (Grad[i] != 0.0) 
+            if (Grad[i] != 0.0)
             {
-                isZero = false; 
+                isZero = false;
                 break;
             }
         }
@@ -307,6 +307,26 @@ public class Tensor
         foreach (var t in topo)
         {
             t._backward();
+        }
+    }
+
+    /// <summary>
+    /// Applies an in-place exponential decay multiplier to all elements: x = x * exp(-lambda * t).
+    /// Designed to age weights in the Knowledge Graph to prioritize recent interactions.
+    /// </summary>
+    /// <param name="lambda">The decay constant (e.g., ln(2)/half-life).</param>
+    /// <param name="time">The time delta (must be >= 0).</param>
+    public void ApplyDecay(double lambda, double time)
+    {
+        double t = Math.Max(0, time);
+
+        double multiplier = Math.Exp(-lambda * t);
+
+        if (multiplier < 1e-9) multiplier = 0.0;
+
+        for (int i = 0; i < Data.Length; i++)
+        {
+            Data[i] *= multiplier;
         }
     }
 
