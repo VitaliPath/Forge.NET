@@ -56,5 +56,42 @@ namespace Forge.Tests
             Assert.Single(result);
             Assert.Equal("Loner", result[0][0].Data);
         }
+
+        [Fact]
+        public void Predicate_Threshold_Splits_Weak_Bridges()
+        {
+            // Arrange: Create two islands connected by a weak "Noise" edge
+            var graph = new Graph<string>();
+
+            // Island 1 (Strongly linked)
+            graph.AddNode("A", "A");
+            graph.AddNode("B", "B");
+            graph.AddEdge("A", "B", 1.0);
+
+            // Island 2 (Strongly linked)
+            graph.AddNode("C", "C");
+            graph.AddNode("D", "D");
+            graph.AddEdge("C", "D", 1.0);
+
+            // The Bridge (Weak noise link)
+            graph.AddEdge("B", "C", 0.05);
+
+            var detector = new ConnectedComponents<string>();
+
+            // Act 1: Standard binary BFS (should find 1 giant component)
+            var giantResult = detector.Execute(graph);
+
+            // Act 2: Weighted BFS with threshold > 0.1 (should find 2 islands)
+            var splitResult = detector.Execute(graph, e => e.Weight > 0.1);
+
+            // Assert
+            Assert.Single(giantResult); // The bridge holds in binary mode
+            Assert.Equal(2, splitResult.Count); // The bridge snaps at threshold
+            
+            // Verify content of split islands
+            var island1 = splitResult.First(c => c.Any(n => n.Id == "A"));
+            Assert.Contains(island1, n => n.Id == "B");
+            Assert.DoesNotContain(island1, n => n.Id == "C");
+        }
     }
 }
