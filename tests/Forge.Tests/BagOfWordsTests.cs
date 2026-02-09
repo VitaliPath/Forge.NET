@@ -6,6 +6,45 @@ namespace Forge.Tests;
 public class BagOfWordsTests
 {
     [Fact]
+    public void Tokenizer_Purges_Markdown_And_Symbols()
+    {
+        // Arrange: String containing common Markdown and mathematical noise
+        var noise = "## Header with *** and (a + b) symbols!";
+        var corpus = new[] { noise };
+        var encoder = new BagOfWordsEncoder(corpus);
+
+        // Act: Check vocabulary
+        // Expected: header, symbols (length > 2 and alphanumeric)
+        // Purged: ##, ***, (, +, b, ), !
+        var vocab = encoder.Vocab.Keys;
+
+        // Assert
+        Assert.Contains("header", vocab);
+        Assert.Contains("symbols", vocab);
+        Assert.DoesNotContain("##", vocab);
+        Assert.DoesNotContain("***", vocab);
+        Assert.DoesNotContain("b", vocab); // Length check
+    }
+
+    [Fact]
+    public void Tokenizer_Minimum_Length_Constraint()
+    {
+        // Arrange: Technical terms vs. single-char noise
+        var text = "Tensor x i weights";
+        var corpus = new[] { text };
+        var encoder = new BagOfWordsEncoder(corpus);
+
+        // Act
+        var vocab = encoder.Vocab.Keys;
+
+        // Assert
+        Assert.Contains("tensor", vocab);
+        Assert.Contains("weights", vocab);
+        Assert.DoesNotContain("x", vocab); // Single char variables purged
+        Assert.DoesNotContain("i", vocab);
+    }
+
+    [Fact]
     public void Verify_Idf_Weighting_Effect()
     {
         // Arrange: "common" appears in 3/3 docs. "unique" appears in 1/3.

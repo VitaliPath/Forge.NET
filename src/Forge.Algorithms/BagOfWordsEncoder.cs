@@ -8,9 +8,9 @@ public class BagOfWordsEncoder
     private readonly Dictionary<string, int> _docFreq;
     private readonly int _numDocs;
 
-    private static readonly HashSet<string> StopWords = new() 
-    { 
-        "the", "is", "and", "a", "of", "to", "in", "for", "with", "it", "on", 
+    private static readonly HashSet<string> StopWords = new()
+    {
+        "the", "is", "and", "a", "of", "to", "in", "for", "with", "it", "on",
         "this", "that", "by", "from", "an", "be", "as", "are", "at", "has",
         "can", "will", "your", "our", "their", "all", "but", "not", "which",
         "was", "were", "been", "have", "had", "does", "did", "how", "where",
@@ -21,15 +21,15 @@ public class BagOfWordsEncoder
     {
         Vocab = new Dictionary<string, int>();
         _docFreq = new Dictionary<string, int>();
-        
+
         var materializedCorpus = corpus.ToList();
         _numDocs = materializedCorpus.Count;
-        
+
         int index = 0;
 
         foreach (var text in materializedCorpus)
         {
-            var words = Tokenize(text).Distinct(); 
+            var words = Tokenize(text).Distinct();
             foreach (var word in words)
             {
                 if (!Vocab.ContainsKey(word))
@@ -58,10 +58,10 @@ public class BagOfWordsEncoder
         for (int i = 0; i < Vocab.Count; i++)
         {
             string word = Vocab.ElementAt(i).Key;
-            
+
             double df = _docFreq[word];
             double idf = Math.Log(_numDocs / df);
-            
+
             tfTensor.Data[i] *= idf;
         }
     }
@@ -72,9 +72,10 @@ public class BagOfWordsEncoder
             throw new ArgumentException($"Vector size ({vector.Length}) must match Vocab size ({Vocab.Count}).");
 
         return vector
-            .Select((weight, index) => new { 
-                Word = Vocab.ElementAt(index).Key, 
-                Weight = weight 
+            .Select((weight, index) => new
+            {
+                Word = Vocab.ElementAt(index).Key,
+                Weight = weight
             })
             .OrderByDescending(x => x.Weight)
             .Take(count)
@@ -85,7 +86,7 @@ public class BagOfWordsEncoder
     public Tensor Encode(string text)
     {
         var t = Tensor.Zeros(1, Vocab.Count);
-        
+
         var words = Tokenize(text);
         foreach (var word in words)
         {
@@ -94,34 +95,34 @@ public class BagOfWordsEncoder
                 t.Data[idx] += 1.0;
             }
         }
-        
+
         return t;
     }
 
     public static double CosineSimilarity(Tensor a, Tensor b)
     {
-        if (a.Data.Length != b.Data.Length) 
+        if (a.Data.Length != b.Data.Length)
             throw new Exception($"Vector dimension mismatch: {a.Data.Length} vs {b.Data.Length}");
 
         double dotProduct = 0.0;
         double magA = 0.0;
         double magB = 0.0;
 
-        for(int i = 0; i < a.Data.Length; i++)
+        for (int i = 0; i < a.Data.Length; i++)
         {
             double valA = a.Data[i];
             double valB = b.Data[i];
-            
+
             dotProduct += valA * valB;
-            magA       += valA * valA;
-            magB       += valB * valB;
+            magA += valA * valA;
+            magB += valB * valB;
         }
-        
+
         magA = Math.Sqrt(magA);
         magB = Math.Sqrt(magB);
-        
-        if (magA == 0 || magB == 0) return 0.0; 
-        
+
+        if (magA == 0 || magB == 0) return 0.0;
+
         return dotProduct / (magA * magB);
     }
 
@@ -129,21 +130,48 @@ public class BagOfWordsEncoder
     {
         if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
 
+        // 1. Exhaustive Split: Added '#' to catch Markdown headers specifically.
+        // We treat all these as "Glue" or "Separators" to be discarded.
         var rawTokens = text.ToLower().Split(new[] { 
             ' ', '-', '.', ',', '!', '?', ':', ';', '(', ')', '[', ']', 
-            '{', '}', '"', '\'', '`', '/', '\\', '\t', '\n', '\r', '*', '+', '=', '<', '>' 
+            '{', '}', '"', '\'', '`', '/', '\\', '\t', '\n', '\r', '*', 
+            '+', '=', '<', '>', '#', '@', '$', '^', '&', '|', '~' 
         }, StringSplitOptions.RemoveEmptyEntries);
 
         var filteredTokens = new List<string>();
 
         foreach (var token in rawTokens)
         {
+            // 2. Minimum Length Constraint (FORGE-0007 Rule)
+            // Discards 'x', 'i', '##', and single-letter artifacts.
+            if (token.Length < 3) continue;
+
+            // 3. StopWords filtration
             if (StopWords.Contains(token)) continue;
+
+            // 4. Alphanumeric Sanitization
+            // We ensure the token contains strictly meaningful characters.
+            // This catches mixed-symbol artifacts that Split might have missed.
+            if (!IsAlphanumeric(token)) continue;
+
+            // 5. Numerical Filter
             if (double.TryParse(token, out _)) continue;
-            if (token.Length < 2) continue;
+
             filteredTokens.Add(token);
         }
 
         return filteredTokens.ToArray();
+    }
+
+    /// <summary>
+    /// Helper to ensure the token doesn't contain lingering symbols.
+    /// </summary>
+    private bool IsAlphanumeric(string token)
+    {
+        foreach (char c in token)
+        {
+            if (!char.IsLetterOrDigit(c)) return false;
+        }
+        return true;
     }
 }
