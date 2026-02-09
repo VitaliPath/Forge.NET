@@ -6,11 +6,14 @@ namespace Forge.Graph
     {
         public Node<T> Target { get; set; }
         public double Weight { get; set; }
+        
+        public long LastModified { get; set; } 
 
-        public Edge(Node<T> target, double weight)
+        public Edge(Node<T> target, double weight, long lastModified = 0)
         {
             Target = target;
             Weight = weight;
+            LastModified = lastModified;
         }
     }
 
@@ -47,7 +50,8 @@ namespace Forge.Graph
         /// Accumulates weight into an edge. 
         /// Creates the edge if it doesn't exist.
         /// </summary>
-        public void AccumulateEdgeWeight(string fromId, string toId, double delta)
+        /// <param name="timestamp">FORGE-0011: Optional Unix timestamp of the reinforcement.</param>
+        public void AccumulateEdgeWeight(string fromId, string toId, double delta, long timestamp = 0)
         {
             if (!_nodes.TryGetValue(fromId, out var source)) 
                 throw new Exception($"Source node {fromId} missing.");
@@ -55,23 +59,25 @@ namespace Forge.Graph
                 throw new Exception($"Target node {toId} missing.");
 
             // 1. Update A -> B
-            UpdateEdge(source, target, delta);
+            UpdateEdge(source, target, delta, timestamp);
 
-            // 2. Update B -> A (Bi-directional for undirected community detection)
-            UpdateEdge(target, source, delta);
+            // 2. Update B -> A
+            UpdateEdge(target, source, delta, timestamp);
         }
 
-        private void UpdateEdge(Node<T> src, Node<T> dest, double delta)
+        private void UpdateEdge(Node<T> src, Node<T> dest, double delta, long timestamp)
         {
             lock (src.SyncRoot)
             {
                 if (src.EdgeMap.TryGetValue(dest.Id, out var existingEdge))
                 {
                     existingEdge.Weight += delta;
+                    
+                    existingEdge.LastModified = Math.Max(existingEdge.LastModified, timestamp);
                 }
                 else
                 {
-                    src.EdgeMap.Add(dest.Id, new Edge<T>(dest, delta));
+                    src.EdgeMap.Add(dest.Id, new Edge<T>(dest, delta, timestamp));
                 }
             }
         }

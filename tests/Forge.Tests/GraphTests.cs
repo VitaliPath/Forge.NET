@@ -37,7 +37,7 @@ namespace Forge.Tests
             int iterations = 1000;
 
             // Act: Fire 1000 increments of 1.0 in parallel
-            await Task.Run(() => Parallel.For(0, iterations, _ => 
+            await Task.Run(() => Parallel.For(0, iterations, _ =>
             {
                 graph.AccumulateEdgeWeight("source", "target", 1.0);
             }));
@@ -45,6 +45,29 @@ namespace Forge.Tests
             // Assert
             var weight = graph.GetNode("source").Neighbors.First().Weight;
             Assert.Equal(1000.0, weight);
+        }
+
+        [Fact]
+        public void AccumulateEdgeWeight_Maintains_Most_Recent_Timestamp()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            graph.AddNode("file_a", "data_a");
+            graph.AddNode("file_b", "data_b");
+
+            // Act: Initial reinforcement at Time 1000
+            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0, 1000);
+            
+            // Act: Reinforcement from an "older" commit (Time 500)
+            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0, 500);
+
+            // Assert
+            var source = graph.GetNode("file_a");
+            var edge = source.Neighbors.First(e => e.Target.Id == "file_b");
+
+            Assert.Equal(2.0, edge.Weight);
+            
+            Assert.Equal(1000, edge.LastModified);
         }
     }
 }
