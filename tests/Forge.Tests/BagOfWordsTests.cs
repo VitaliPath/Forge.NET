@@ -6,6 +6,33 @@ namespace Forge.Tests;
 public class BagOfWordsTests
 {
     [Fact]
+    public void Verify_Idf_Weighting_Effect()
+    {
+        // Arrange: "common" appears in 3/3 docs. "unique" appears in 1/3.
+        var corpus = new[] {
+            "common unique",
+            "common",
+            "common irrelevant"
+        };
+        var encoder = new BagOfWordsEncoder(corpus);
+
+        // Act: Encode a document and apply IDF
+        var tensor = encoder.Encode("common unique");
+        encoder.TransformTfIdf(tensor);
+
+        // Assert
+        int commonIdx = encoder.Vocab["common"];
+        int uniqueIdx = encoder.Vocab["unique"];
+
+        // 1. "common" appears in all documents. log(3/3) = log(1) = 0.0.
+        Assert.Equal(0.0, tensor.Data[commonIdx]);
+
+        // 2. "unique" appears in 1/3 documents. log(3/1) = 1.0986...
+        // tf is 1.0, so 1.0 * 1.0986
+        Assert.True(tensor.Data[uniqueIdx] > 1.0);
+    }
+    
+    [Fact]
     public void SanityCheck_CosineSimilarity()
     {
         // Corpus defines the "Universe" of words

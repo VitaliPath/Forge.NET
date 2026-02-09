@@ -5,6 +5,8 @@ namespace Forge.Algorithms;
 public class BagOfWordsEncoder
 {
     public readonly Dictionary<string, int> Vocab;
+    private readonly Dictionary<string, int> _docFreq;
+    private readonly int _numDocs;
 
     private static readonly HashSet<string> StopWords = new() 
     { 
@@ -18,18 +20,49 @@ public class BagOfWordsEncoder
     public BagOfWordsEncoder(IEnumerable<string> corpus)
     {
         Vocab = new Dictionary<string, int>();
+        _docFreq = new Dictionary<string, int>();
+        
+        var materializedCorpus = corpus.ToList();
+        _numDocs = materializedCorpus.Count;
+        
         int index = 0;
 
-        foreach (var text in corpus)
+        foreach (var text in materializedCorpus)
         {
-            var words = Tokenize(text);
+            var words = Tokenize(text).Distinct(); 
             foreach (var word in words)
             {
                 if (!Vocab.ContainsKey(word))
                 {
                     Vocab[word] = index++;
                 }
+
+                if (!_docFreq.ContainsKey(word))
+                {
+                    _docFreq[word] = 0;
+                }
+                _docFreq[word]++;
             }
+        }
+    }
+
+    /// <summary>
+    /// Transforms a raw TF vector into a TF-IDF weighted vector.
+    /// Formula: w = tf * log(N / df)
+    /// </summary>
+    public void TransformTfIdf(Tensor tfTensor)
+    {
+        if (tfTensor.Data.Length != Vocab.Count)
+            throw new ArgumentException("Tensor dimensions must match vocabulary size.");
+
+        for (int i = 0; i < Vocab.Count; i++)
+        {
+            string word = Vocab.ElementAt(i).Key;
+            
+            double df = _docFreq[word];
+            double idf = Math.Log(_numDocs / df);
+            
+            tfTensor.Data[i] *= idf;
         }
     }
 
@@ -96,7 +129,6 @@ public class BagOfWordsEncoder
     {
         if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
 
-        // 1. Lowercase and Split on whitespace and punctuation
         var rawTokens = text.ToLower().Split(new[] { 
             ' ', '-', '.', ',', '!', '?', ':', ';', '(', ')', '[', ']', 
             '{', '}', '"', '\'', '`', '/', '\\', '\t', '\n', '\r', '*', '+', '=', '<', '>' 
@@ -106,18 +138,9 @@ public class BagOfWordsEncoder
 
         foreach (var token in rawTokens)
         {
-            // 2. SIGNAL VALIDATION
-            // Rule A: Remove Stop Words
             if (StopWords.Contains(token)) continue;
-
-            // Rule B: Remove pure numbers/digits (e.g., "0", "17687")
             if (double.TryParse(token, out _)) continue;
-
-            // Rule C: Minimum Length (removes "i", "x", "y" unless specific to your context)
             if (token.Length < 2) continue;
-
-            // Rule D: LaTeX/Markdown Noise removal (removes "max", "frac", etc if desired, 
-            // though 'relu' is safe)
             filteredTokens.Add(token);
         }
 
