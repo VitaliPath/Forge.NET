@@ -3,6 +3,12 @@
   <ItemGroup>
     <ProjectReference Include="..\Forge.Core\Forge.Core.csproj" />
     <ProjectReference Include="..\Forge.Neural\Forge.Neural.csproj" />
+    <ProjectReference Include="..\Forge.Graph\Forge.Graph.csproj" />
+    <ProjectReference Include="..\Forge.Algorithms\Forge.Algorithms.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
   </ItemGroup>
 
   <PropertyGroup>

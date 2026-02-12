@@ -92,7 +92,47 @@ namespace Forge.Graph
             if (_nodes.TryGetValue(id, out var node)) return node;
             throw new Exception($"Node {id} not found.");
         }
-        
+
         public IEnumerable<string> GetAllIds() => _nodes.Keys;
+
+        public GraphCsr CompileCsr()
+        {
+            // 1. Establish deterministic node ordering
+            var sortedNodes = Nodes.OrderBy(n => n.Id).ToList();
+            var idToIndex = sortedNodes.Select((n, i) => new { n.Id, i })
+                                       .ToDictionary(x => x.Id, x => x.i);
+            var indexToId = sortedNodes.Select(n => n.Id).ToArray();
+
+            int n = sortedNodes.Count;
+            int[] rowPtr = new int[n + 1];
+
+            int totalEdges = 0;
+            for (int i = 0; i < n; i++)
+            {
+                rowPtr[i] = totalEdges;
+                totalEdges += sortedNodes[i].EdgeMap.Count;
+            }
+            rowPtr[n] = totalEdges;
+
+            int[] colIdx = new int[totalEdges];
+            double[] weights = new double[totalEdges];
+            long[] lastModified = new long[totalEdges];
+
+            int edgeIdx = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var sortedNeighbors = sortedNodes[i].Neighbors.OrderBy(e => e.Target.Id);
+
+                foreach (var edge in sortedNeighbors)
+                {
+                    colIdx[edgeIdx] = idToIndex[edge.Target.Id];
+                    weights[edgeIdx] = edge.Weight;
+                    lastModified[edgeIdx] = edge.LastModified;
+                    edgeIdx++;
+                }
+            }
+
+            return new GraphCsr(rowPtr, colIdx, weights, lastModified, idToIndex, indexToId);
+        }
     }
 }

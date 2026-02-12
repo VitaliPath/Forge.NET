@@ -1,6 +1,10 @@
 ﻿using System.Diagnostics;
 using Forge.Core;
 using Forge.Neural;
+using BenchmarkDotNet.Running;
+using Forge.Benchmarks;
+
+var summary = BenchmarkRunner.Run<GraphBenchmarks>();
 
 Console.WriteLine("⚔️  FORGE.NEURAL INTEGRATION TEST  ⚔️");
 Console.WriteLine("-----------------------------------");
