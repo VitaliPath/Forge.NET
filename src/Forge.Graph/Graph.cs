@@ -87,9 +87,33 @@ namespace Forge.Graph
             AccumulateEdgeWeight(fromId, toId, weight);
         }
 
+        /// <summary>
+        /// FORGE-0013: Safely attempts to retrieve a node by its ID without throwing an exception.
+        /// Follows the standard .NET Try-Parse pattern.
+        /// </summary>
+        /// <param name="id">The unique identifier of the node.</param>
+        /// <param name="node">The retrieved node, or null if not found.</param>
+        /// <returns>True if the node exists; otherwise, false.</returns>
+        public bool TryGetNode(string id, out Node<T>? node)
+        {
+            if (string.IsNullOrEmpty(id))
+            {
+                node = null;
+                return false;
+            }
+
+            return _nodes.TryGetValue(id, out node);
+        }
+
+        /// <summary>
+        /// Retrieves a node by ID. Throws an exception if the node is missing.
+        /// Refactored to utilize the safe TryGetNode implementation.
+        /// </summary>
         public Node<T> GetNode(string id)
         {
-            if (_nodes.TryGetValue(id, out var node)) return node;
+            if (TryGetNode(id, out var node))
+                return node!;
+
             throw new Exception($"Node {id} not found.");
         }
 
