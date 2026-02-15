@@ -53,16 +53,49 @@ namespace Forge.Graph
         /// <param name="timestamp">FORGE-0011: Optional Unix timestamp of the reinforcement.</param>
         public void AccumulateEdgeWeight(string fromId, string toId, double delta, long timestamp = 0)
         {
-            if (!_nodes.TryGetValue(fromId, out var source)) 
+            if (!_nodes.TryGetValue(fromId, out var source))
                 throw new Exception($"Source node {fromId} missing.");
-            if (!_nodes.TryGetValue(toId, out var target)) 
+            if (!_nodes.TryGetValue(toId, out var target))
                 throw new Exception($"Target node {toId} missing.");
 
-            // 1. Update A -> B
-            UpdateEdge(source, target, delta, timestamp);
+            if (fromId == toId)
+            {
+                lock (source.SyncRoot)
+                {
+                    UpdateEdgeInternal(source, target, delta, timestamp);
+                }
+                return;
+            }
 
-            // 2. Update B -> A
-            UpdateEdge(target, source, delta, timestamp);
+            bool sourceFirst = string.Compare(fromId, toId, StringComparison.Ordinal) < 0;
+            var first = sourceFirst ? source : target;
+            var second = sourceFirst ? target : source;
+
+            lock (first.SyncRoot)
+            {
+                lock (second.SyncRoot)
+                {
+                    UpdateEdgeInternal(source, target, delta, timestamp);
+                    UpdateEdgeInternal(target, source, delta, timestamp);
+                }
+            }
+        }
+
+        /// <summary>
+        /// FORGE-014: Core edge update logic.
+        /// Assumes the caller has already acquired the necessary locks on SyncRoot.
+        /// </summary>
+        private void UpdateEdgeInternal(Node<T> src, Node<T> dest, double delta, long timestamp)
+        {
+            if (src.EdgeMap.TryGetValue(dest.Id, out var existingEdge))
+            {
+                existingEdge.Weight += delta;
+                existingEdge.LastModified = Math.Max(existingEdge.LastModified, timestamp);
+            }
+            else
+            {
+                src.EdgeMap.Add(dest.Id, new Edge<T>(dest, delta, timestamp));
+            }
         }
 
         private void UpdateEdge(Node<T> src, Node<T> dest, double delta, long timestamp)

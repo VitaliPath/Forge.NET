@@ -130,9 +130,42 @@ namespace Forge.Tests
             // Assert
             Assert.Equal(1, csr.NodeCount);
             Assert.Equal(0, csr.EdgeCount);
-            Assert.Equal(0, csr.ColIdx.Length);
+            Assert.Empty(csr.ColIdx);
             Assert.Equal(0, csr.RowPtr[0]);
             Assert.Equal(0, csr.RowPtr[1]); // RowPtr[i] == RowPtr[i+1] means 0 degree
+        }
+
+        [Fact]
+        public async Task AccumulateEdgeWeight_Prevents_Deadlock_On_Bidirectional_Updates()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            graph.AddNode("A", "DataA");
+            graph.AddNode("B", "DataB");
+            int iterations = 10000;
+
+            // Act: Two tasks updating the same edge from opposite 'directions'
+            var task1 = Task.Run(() =>
+            {
+                for (int i = 0; i < iterations; i++)
+                    graph.AccumulateEdgeWeight("A", "B", 1.0);
+            });
+
+            var task2 = Task.Run(() =>
+            {
+                for (int i = 0; i < iterations; i++)
+                    graph.AccumulateEdgeWeight("B", "A", 1.0);
+            });
+
+            // Assert: Use WaitAsync to ensure the test fails if it hangs for > 5 seconds.
+            await Task.WhenAll(task1, task2).WaitAsync(TimeSpan.FromSeconds(5));
+
+            var edgeAB = graph.GetNode("A").Neighbors.First(e => e.Target.Id == "B");
+            var edgeBA = graph.GetNode("B").Neighbors.First(e => e.Target.Id == "A");
+
+            // Total weight should be 20,000 (10k from task1 + 10k from task2 bidirectional logic)
+            Assert.Equal(20000.0, edgeAB.Weight);
+            Assert.Equal(20000.0, edgeBA.Weight);
         }
     }
 }
