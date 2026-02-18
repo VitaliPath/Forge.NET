@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using System.Text;
 
 namespace Forge.Core;
@@ -319,12 +320,23 @@ public class Tensor
     public void ApplyDecay(double lambda, double time)
     {
         double t = Math.Max(0, time);
-
         double multiplier = Math.Exp(-lambda * t);
-
         if (multiplier < 1e-9) multiplier = 0.0;
 
-        for (int i = 0; i < Data.Length; i++)
+        int i = 0;
+        int width = Vector<double>.Count;
+
+        if (Vector.IsHardwareAccelerated && Data.Length >= width)
+        {
+            var vMultiplier = new Vector<double>(multiplier);
+            for (; i <= Data.Length - width; i += width)
+            {
+                var vData = new Vector<double>(Data, i);
+                (vData * vMultiplier).CopyTo(Data, i);
+            }
+        }
+
+        for (; i < Data.Length; i++)
         {
             Data[i] *= multiplier;
         }
