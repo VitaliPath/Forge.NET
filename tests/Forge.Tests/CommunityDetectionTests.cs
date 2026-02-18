@@ -87,11 +87,33 @@ namespace Forge.Tests
             // Assert
             Assert.Single(giantResult); // The bridge holds in binary mode
             Assert.Equal(2, splitResult.Count); // The bridge snaps at threshold
-            
+
             // Verify content of split islands
             var island1 = splitResult.First(c => c.Any(n => n.Id == "A"));
             Assert.Contains(island1, n => n.Id == "B");
             Assert.DoesNotContain(island1, n => n.Id == "C");
+        }
+
+        [Fact]
+        public void ParallelDSU_Maintains_Parity_With_Standard_DFS()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            for (int i = 0; i < 1000; i++) graph.AddNode(i.ToString(), "data");
+            for (int i = 0; i < 999; i++) graph.AddEdge(i.ToString(), (i + 1).ToString(), 1.0);
+
+            var csr = graph.CompileCsr();
+            var sequential = new ConnectedComponents<string>();
+            var parallel = new ParallelConnectedComponents<string>();
+
+            // Act
+            var seqResult = sequential.Execute(csr);
+            var parResult = parallel.Execute(csr);
+
+            // Assert
+            Assert.Single(seqResult);
+            Assert.Single(parResult);
+            Assert.Equal(seqResult[0].Count, parResult[0].Count);
         }
     }
 }
