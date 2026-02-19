@@ -167,5 +167,45 @@ namespace Forge.Tests
             Assert.Equal(20000.0, edgeAB.Weight);
             Assert.Equal(20000.0, edgeBA.Weight);
         }
+
+        [Fact]
+        public void RemoveNode_Performs_Symmetric_Cleanup()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            graph.AddNode("A", "DataA");
+            graph.AddNode("B", "DataB");
+            graph.AddEdge("A", "B", 1.0);
+
+            // Act
+            bool removed = graph.RemoveNode("A");
+
+            // Assert
+            Assert.True(removed);
+            Assert.DoesNotContain("A", graph.GetAllIds());
+            
+            var nodeB = graph.GetNode("B");
+            Assert.Empty(nodeB.Neighbors); // Symmetric snip verified
+        }
+
+        [Fact]
+        public void RemoveNode_Maintains_CSR_Integrity()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            graph.AddNode("A", "A");
+            graph.AddNode("B", "B");
+            graph.AddNode("C", "C");
+            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("B", "C", 1.0);
+
+            // Act: Remove the central pivot
+            graph.RemoveNode("B");
+
+            // Assert: CSR compilation should not find orphans
+            var csr = graph.CompileCsr();
+            Assert.Equal(2, csr.NodeCount); // A and C remain
+            Assert.Equal(0, csr.EdgeCount); // All edges touched B
+        }
     }
 }

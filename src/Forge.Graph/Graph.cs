@@ -47,6 +47,43 @@ namespace Forge.Graph
         }
 
         /// <summary>
+        /// FORGE-019: Atomically removes a node and performs a symmetric edge cascade.
+        /// Utilizes deterministic lock ordering (ID-based) to maintain thread safety.
+        /// Citation: Shapiro (1986) - Concurrent Graph Data Structures.
+        /// </summary>
+        public bool RemoveNode(string id)
+        {
+            if (!_nodes.TryRemove(id, out var nodeToRemove))
+                return false;
+
+            lock (nodeToRemove.SyncRoot)
+            {
+                var neighbors = nodeToRemove.EdgeMap.Keys.ToList();
+
+                foreach (var neighborId in neighbors)
+                {
+                    if (_nodes.TryGetValue(neighborId, out var neighbor))
+                    {
+                        bool uFirst = string.Compare(id, neighborId, StringComparison.Ordinal) < 0;
+                        var first = uFirst ? nodeToRemove : neighbor;
+                        var second = uFirst ? neighbor : nodeToRemove;
+
+                        lock (first.SyncRoot)
+                        {
+                            lock (second.SyncRoot)
+                            {
+                                neighbor.EdgeMap.Remove(id);
+                                nodeToRemove.EdgeMap.Remove(neighborId);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Accumulates weight into an edge. 
         /// Creates the edge if it doesn't exist.
         /// </summary>
