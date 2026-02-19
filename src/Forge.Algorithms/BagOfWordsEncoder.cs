@@ -99,6 +99,10 @@ public class BagOfWordsEncoder
         return t;
     }
 
+    /// <summary>
+    /// KG-039 / FORGE-020: Bridge to SIMD-accelerated similarity.
+    /// Utilizes the VectorMath MathBridge for hardware-optimized execution.
+    /// </summary>
     public static double CosineSimilarity(Tensor a, Tensor b)
     {
         return VectorMath.CosineSimilarity(a.Data, b.Data);
