@@ -119,6 +119,34 @@ namespace Forge.Graph
         }
 
         /// <summary>
+        /// FORGE-022: Performs a parallel scan of all nodes in the graph.
+        /// Ideal for in-place updates or complex validation passes.
+        /// </summary>
+        public void ParallelScanNodes(Action<Node<T>> action)
+        {
+            // Partitioner.Create optimizes the work-stealing for the .NET Task Scheduler
+            var partitioner = Partitioner.Create(_nodes.Values, EnumerablePartitionerOptions.NoBuffering);
+            Parallel.ForEach(partitioner, action);
+        }
+
+        /// <summary>
+        /// FORGE-022: High-speed parallel projection of node properties.
+        /// Maps graph vertices into a resulting set (Map-Reduce pattern).
+        /// </summary>
+        public IEnumerable<TResult> ParallelProjectNodes<TResult>(Func<Node<T>, TResult> selector)
+        {
+            var results = new ConcurrentBag<TResult>();
+            var partitioner = Partitioner.Create(_nodes.Values, EnumerablePartitionerOptions.NoBuffering);
+
+            Parallel.ForEach(partitioner, node =>
+            {
+                results.Add(selector(node));
+            });
+
+            return results;
+        }
+
+        /// <summary>
         /// FORGE-021: Applies graph-wide temporal decay to all edges.
         /// Formula: w = w * exp(-lambda * delta_t)
         /// </summary>

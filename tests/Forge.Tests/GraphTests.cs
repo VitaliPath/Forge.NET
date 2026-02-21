@@ -246,5 +246,43 @@ namespace Forge.Tests
             // Assert: Verify the original CSR weights changed
             Assert.Equal(42.0, csr.Weights[0]);
         }
+
+        [Fact]
+        public void ParallelProjectNodes_Returns_Correct_Count_And_Data()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            for (int i = 0; i < 1000; i++)
+            {
+                graph.AddNode($"id_{i}", $"label_{i}");
+            }
+
+            // Act: Project only the labels
+            var labels = graph.ParallelProjectNodes(n => n.Data);
+
+            // Assert
+            Assert.Equal(1000, labels.Count());
+            Assert.Contains("label_500", labels);
+        }
+
+        [Fact]
+        public void ParallelScanNodes_Performs_Concurrent_Mutations_Safely()
+        {
+            // Arrange
+            var graph = new Graph<int>();
+            for (int i = 0; i < 1000; i++) graph.AddNode(i.ToString(), 0);
+
+            // Act: Increment every node's data in parallel
+            graph.ParallelScanNodes(node =>
+            {
+                node.Data = 1;
+            });
+
+            // Assert
+            foreach (var node in graph.Nodes)
+            {
+                Assert.Equal(1, node.Data);
+            }
+        }
     }
 }
