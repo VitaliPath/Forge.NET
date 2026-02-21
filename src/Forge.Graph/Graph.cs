@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Forge.Core;
 
 namespace Forge.Graph
 {
@@ -139,9 +140,8 @@ namespace Forge.Graph
         /// </summary>
         public void ParallelScanNodes(Action<Node<T>> action)
         {
-            // Partitioner.Create optimizes the work-stealing for the .NET Task Scheduler
             var partitioner = Partitioner.Create(_nodes.Values, EnumerablePartitionerOptions.NoBuffering);
-            Parallel.ForEach(partitioner, action);
+            Parallel.ForEach(partitioner, ForgeConcurrency.DefaultOptions, action);
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace Forge.Graph
             var results = new ConcurrentBag<TResult>();
             var partitioner = Partitioner.Create(_nodes.Values, EnumerablePartitionerOptions.NoBuffering);
 
-            Parallel.ForEach(partitioner, node =>
+            Parallel.ForEach(partitioner, ForgeConcurrency.DefaultOptions, node =>
             {
                 results.Add(selector(node));
             });
@@ -171,7 +171,7 @@ namespace Forge.Graph
         {
             const double secondsPerDay = 86400.0;
 
-            Parallel.ForEach(_nodes.Values, node =>
+            Parallel.ForEach(_nodes.Values, ForgeConcurrency.DefaultOptions, node =>
             {
                 lock (node.SyncRoot)
                 {
@@ -179,7 +179,6 @@ namespace Forge.Graph
                     {
                         double ageInDays = Math.Max(0, (nowUnix - edge.LastModified) / secondsPerDay);
                         double multiplier = Math.Exp(-lambda * ageInDays);
-
                         edge.Weight *= (multiplier < 1e-9) ? 0.0 : multiplier;
                     }
                 }

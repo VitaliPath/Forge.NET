@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Forge.Core;
 
 namespace Forge.Graph.Algorithms;
 
@@ -6,6 +7,7 @@ public class ParallelConnectedComponents<T> : IConnectedComponents<T>
 {
     /// <summary>
     /// Executes the Parallel DSU algorithm on a GraphCsr snapshot.
+    /// FORGE-025: Throttled via ForgeConcurrency to prevent cache thrashing.
     /// Uses deterministic lock ordering and union-by-rank for O(α(N)) performance.
     /// </summary>
     public List<List<string>> Execute(GraphCsr csr, Func<int, double, bool>? predicate = null)
@@ -15,15 +17,13 @@ public class ParallelConnectedComponents<T> : IConnectedComponents<T>
         int[] rank = new int[n];
         object[] locks = new object[n];
 
-        // 1. Initialize Sets
         for (int i = 0; i < n; i++)
         {
             parent[i] = i;
             locks[i] = new object();
         }
 
-        // 2. Parallel Edge Processing
-        Parallel.For(0, n, u =>
+        Parallel.For(0, n, ForgeConcurrency.DefaultOptions, u =>
         {
             int start = csr.RowPtr[u];
             int end = csr.RowPtr[u + 1];
@@ -33,7 +33,6 @@ public class ParallelConnectedComponents<T> : IConnectedComponents<T>
                 int v = csr.ColIdx[k];
                 double w = csr.Weights[k];
 
-                // Apply Gravity Threshold
                 if (predicate == null || predicate(v, w))
                 {
                     Union(u, v, parent, rank, locks);
@@ -41,10 +40,9 @@ public class ParallelConnectedComponents<T> : IConnectedComponents<T>
             }
         });
 
-        // 3. Final Path Compression & Grouping
         var groupedRoots = new ConcurrentDictionary<int, ConcurrentBag<string>>();
         
-        Parallel.For(0, n, i =>
+        Parallel.For(0, n, ForgeConcurrency.DefaultOptions, i =>
         {
             int root = Find(i, parent);
             var bag = groupedRoots.GetOrAdd(root, _ => new ConcurrentBag<string>());
