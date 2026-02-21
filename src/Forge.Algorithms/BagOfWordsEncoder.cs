@@ -17,6 +17,8 @@ public class BagOfWordsEncoder
         "was", "were", "been", "have", "had", "does", "did", "how", "where",
         "when", "why", "who"
     };
+    
+    public IReadOnlyList<float> IdfWeights => _idfWeights;
 
     public BagOfWordsEncoder(IEnumerable<string> corpus)
     {
