@@ -38,7 +38,7 @@ namespace Forge.Graph
 
     public class Graph<T>
     {
-        private readonly ConcurrentDictionary<string, Node<T>> _nodes = new();
+        private readonly ConcurrentDictionary<string, Node<T>> _nodes = new(StringComparer.OrdinalIgnoreCase);
         public IEnumerable<Node<T>> Nodes => _nodes.Values;
 
         public void AddNode(string id, T data)
