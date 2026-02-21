@@ -41,9 +41,24 @@ namespace Forge.Graph
         private readonly ConcurrentDictionary<string, Node<T>> _nodes = new(StringComparer.OrdinalIgnoreCase);
         public IEnumerable<Node<T>> Nodes => _nodes.Values;
 
+        /// <summary>
+        /// FORGE-023: Atomically retrieves an existing node or creates a new one.
+        /// Ensures identity stability in high-concurrency ingestion environments.
+        /// </summary>
+        public Node<T> GetOrAddNode(string id, T data)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("Node ID cannot be null or whitespace.");
+
+            return _nodes.GetOrAdd(id, (key) => new Node<T>(key, data));
+        }
+
+        /// <summary>
+        /// FORGE-023: Refactored to utilize the atomic GetOrAddNode primitive.
+        /// </summary>
         public void AddNode(string id, T data)
         {
-            _nodes.TryAdd(id, new Node<T>(id, data));
+            GetOrAddNode(id, data);
         }
 
         /// <summary>

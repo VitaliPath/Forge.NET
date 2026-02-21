@@ -284,5 +284,39 @@ namespace Forge.Tests
                 Assert.Equal(1, node.Data);
             }
         }
+
+        // tests/Forge.Tests/GraphTests.cs additions
+
+        [Fact]
+        public async Task GetOrAddNode_Concurrently_MaintainsIdentityStability()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            const string sharedId = "IDENTITY-CONCURRENCY-TEST";
+            const int threadCount = 100;
+
+            // We use a Task array to track the returned references from every thread
+            var tasks = new Task<Node<string>>[threadCount];
+
+            // Act
+            // Hammer the graph with 100 simultaneous requests for the same ID
+            Parallel.For(0, threadCount, i =>
+            {
+                tasks[i] = Task.Run(() => graph.GetOrAddNode(sharedId, $"Data-{i}"));
+            });
+
+            var results = await Task.WhenAll(tasks);
+
+            // Assert
+            // 1. Structural Integrity: Only one node should exist in the graph
+            Assert.Single(graph.Nodes);
+
+            // 2. Reference Integrity: Every thread must have received the EXACT same object reference
+            var masterReference = graph.GetNode(sharedId);
+            foreach (var node in results)
+            {
+                Assert.Same(masterReference, node);
+            }
+        }
     }
 }

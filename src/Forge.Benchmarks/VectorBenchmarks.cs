@@ -7,12 +7,12 @@ namespace Forge.Benchmarks;
 [MemoryDiagnoser]
 public class VectorBenchmarks
 {
-    private double[] _vecA;
-    private double[] _vecB;
-    private Tensor _tA;
-    private Tensor _tB;
+    private double[] _vecA = null!;
+    private double[] _vecB = null!;
+    private Tensor _tA = null!;
+    private Tensor _tB = null!;
 
-    [Params(1024, 4096)] // Dimension sizes
+    [Params(1024, 4096)] 
     public int Size;
 
     [GlobalSetup]
