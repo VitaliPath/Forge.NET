@@ -31,9 +31,9 @@ public class ParallelConnectedComponents<T> : IConnectedComponents<T>
             for (int k = start; k < end; k++)
             {
                 int v = csr.ColIdx[k];
-                double w = csr.Weights[k];
+                float w = csr.Weights[k];
 
-                if (predicate == null || predicate(v, w))
+                if (predicate == null || predicate(v, (double)w))
                 {
                     Union(u, v, parent, rank, locks);
                 }

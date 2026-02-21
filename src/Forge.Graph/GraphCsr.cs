@@ -1,16 +1,20 @@
 using Forge.Core;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Forge.Graph
 {
-    public struct GraphCsr
+    /// <summary>
+    /// FORGE-057: High-performance CSR storage. 
+    /// Implements Structure-of-Arrays (SoA) for SIMD-ready graph operations.
+    /// </summary>
+    public readonly struct GraphCsr
     {
-        public readonly int[] RowPtr;
-        public readonly int[] ColIdx;
-        public readonly float[] Weights;
-        public readonly long[] LastModified;
+        public readonly int[] RowPtr;    // Starting index for each node
+        public readonly int[] ColIdx;    // Destination indices
+        public readonly float[] Weights;  // Edge gravity (SoA)
+        public readonly long[] LastModified; // Timestamps (SoA)
 
         public readonly Dictionary<string, int> IdToIndex;
         public readonly string[] IndexToId;
@@ -31,17 +35,23 @@ namespace Forge.Graph
             IndexToId = indexToId;
         }
 
+        /// <summary>
+        /// FORGE-057: Refactored Decay to operate on flat buffers.
+        /// This allows the JIT to apply SIMD auto-vectorization.
+        /// </summary>
         public void ApplyDecay(double lambda, long nowUnix)
         {
-            const double secondsPerDay = 86400.0;
+            const float secondsPerDay = 86400.0f;
+            float fLambda = (float)lambda;
+
             var weights = this.Weights;
             var lastModified = this.LastModified;
             int count = this.EdgeCount;
 
-            Parallel.For(0, count, i =>
+            Parallel.For(0, count, ForgeConcurrency.DefaultOptions, i =>
             {
-                double ageInDays = Math.Max(0, (nowUnix - lastModified[i]) / secondsPerDay);
-                float multiplier = (float)Math.Exp(-lambda * ageInDays);
+                float ageInDays = (float)((nowUnix - lastModified[i]) / secondsPerDay);
+                float multiplier = MathF.Exp(-fLambda * ageInDays);
 
                 weights[i] *= (multiplier < 1e-7f) ? 0.0f : multiplier;
             });

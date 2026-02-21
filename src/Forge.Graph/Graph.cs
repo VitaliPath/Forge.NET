@@ -258,17 +258,19 @@ namespace Forge.Graph
 
         public IEnumerable<string> GetAllIds() => _nodes.Keys;
 
+        /// <summary>
+        /// FORGE-057: Compiles the mutable graph into a high-performance SoA (Structure of Arrays) layout.
+        /// Uses GC.AllocateArray with pinned=true to maximize cache locality and minimize GC moves.
+        /// </summary>
         public GraphCsr CompileCsr()
         {
-            // 1. Establish deterministic node ordering
             var sortedNodes = Nodes.OrderBy(n => n.Id).ToList();
-            var idToIndex = sortedNodes.Select((n, i) => new { n.Id, i })
-                                       .ToDictionary(x => x.Id, x => x.i);
+            int n = sortedNodes.Count;
+
+            var idToIndex = sortedNodes.Select((n, i) => new { n.Id, i }).ToDictionary(x => x.Id, x => x.i);
             var indexToId = sortedNodes.Select(n => n.Id).ToArray();
 
-            int n = sortedNodes.Count;
             int[] rowPtr = new int[n + 1];
-
             int totalEdges = 0;
             for (int i = 0; i < n; i++)
             {
@@ -277,15 +279,14 @@ namespace Forge.Graph
             }
             rowPtr[n] = totalEdges;
 
-            int[] colIdx = new int[totalEdges];
-            float[] weights = new float[totalEdges];
-            long[] lastModified = new long[totalEdges];
+            int[] colIdx = GC.AllocateArray<int>(totalEdges, pinned: true);
+            float[] weights = GC.AllocateArray<float>(totalEdges, pinned: true);
+            long[] lastModified = GC.AllocateArray<long>(totalEdges, pinned: true);
 
             int edgeIdx = 0;
             for (int i = 0; i < n; i++)
             {
                 var sortedNeighbors = sortedNodes[i].Neighbors.OrderBy(e => e.Target.Id);
-
                 foreach (var edge in sortedNeighbors)
                 {
                     colIdx[edgeIdx] = idToIndex[edge.Target.Id];
