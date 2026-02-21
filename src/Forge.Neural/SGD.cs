@@ -13,11 +13,12 @@ public class SGD
 
     public void Step(List<Tensor> parameters)
     {
+        float lr = (float)_lr;
         foreach (var p in parameters)
         {
-            for(int i=0; i<p.Data.Length; i++)
+            for (int i = 0; i < p.Data.Length; i++)
             {
-                p.Data[i] -= _lr * p.Grad[i];
+                p.Data[i] -= lr * p.Grad[i];
             }
         }
     }

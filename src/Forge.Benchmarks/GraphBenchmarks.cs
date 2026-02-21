@@ -34,7 +34,7 @@ public class GraphBenchmarks
             for (int j = 1; j <= EdgeDegree; j++)
             {
                 int target = (i + j) % NodeCount;
-                _graph.AddEdge(i.ToString(), target.ToString(), 1.0);
+                _graph.AddEdge(i.ToString(), target.ToString(), 1.0f);
             }
         }
 

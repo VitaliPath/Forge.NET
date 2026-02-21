@@ -17,8 +17,8 @@ namespace Forge.Tests
             graph.AddNode("file_b", "content_b");
 
             // Act
-            graph.AccumulateEdgeWeight("file_a", "file_b", 0.5);
-            graph.AccumulateEdgeWeight("file_a", "file_b", 0.5);
+            graph.AccumulateEdgeWeight("file_a", "file_b", 0.5f);
+            graph.AccumulateEdgeWeight("file_a", "file_b", 0.5f);
 
             // Assert
             var source = graph.GetNode("file_a");
@@ -40,7 +40,7 @@ namespace Forge.Tests
             // Act: Fire 1000 increments of 1.0 in parallel
             await Task.Run(() => Parallel.For(0, iterations, _ =>
             {
-                graph.AccumulateEdgeWeight("source", "target", 1.0);
+                graph.AccumulateEdgeWeight("source", "target", 1.0f);
             }));
 
             // Assert
@@ -57,10 +57,10 @@ namespace Forge.Tests
             graph.AddNode("file_b", "data_b");
 
             // Act: Initial reinforcement at Time 1000
-            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0, 1000);
+            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0f, 1000);
 
             // Act: Reinforcement from an "older" commit (Time 500)
-            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0, 500);
+            graph.AccumulateEdgeWeight("file_a", "file_b", 1.0f, 500);
 
             // Assert
             var source = graph.GetNode("file_a");
@@ -81,7 +81,7 @@ namespace Forge.Tests
             graph.AddNode("C", "data");
 
             // This creates TWO directed edges: A->B and B->A
-            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
 
             // Act
             var csr = graph.CompileCsr();
@@ -148,13 +148,13 @@ namespace Forge.Tests
             var task1 = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
-                    graph.AccumulateEdgeWeight("A", "B", 1.0);
+                    graph.AccumulateEdgeWeight("A", "B", 1.0f);
             });
 
             var task2 = Task.Run(() =>
             {
                 for (int i = 0; i < iterations; i++)
-                    graph.AccumulateEdgeWeight("B", "A", 1.0);
+                    graph.AccumulateEdgeWeight("B", "A", 1.0f);
             });
 
             // Assert: Use WaitAsync to ensure the test fails if it hangs for > 5 seconds.
@@ -175,7 +175,7 @@ namespace Forge.Tests
             var graph = new Graph<string>();
             graph.AddNode("A", "DataA");
             graph.AddNode("B", "DataB");
-            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
 
             // Act
             bool removed = graph.RemoveNode("A");
@@ -196,8 +196,8 @@ namespace Forge.Tests
             graph.AddNode("A", "A");
             graph.AddNode("B", "B");
             graph.AddNode("C", "C");
-            graph.AddEdge("A", "B", 1.0);
-            graph.AddEdge("B", "C", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
+            graph.AddEdge("B", "C", 1.0f);
 
             // Act: Remove the central pivot
             graph.RemoveNode("B");
@@ -219,7 +219,7 @@ namespace Forge.Tests
             long now = 200000;
             long then = now - (long)(138.629 * 86400); // 1 half-life ago
 
-            graph.AccumulateEdgeWeight("A", "B", 10.0, then);
+            graph.AccumulateEdgeWeight("A", "B", 10.0f, then);
 
             // Act
             graph.ApplyDecay(0.005, now);
@@ -236,12 +236,12 @@ namespace Forge.Tests
             var graph = new Graph<string>();
             graph.AddNode("A", "A");
             graph.AddNode("B", "B");
-            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
             var csr = graph.CompileCsr();
 
             // Act: Mutate the weight via the Tensor view
             var tensorView = csr.WeightsAsTensor;
-            for (int i = 0; i < tensorView.Data.Length; i++) tensorView.Data[i] = 42.0;
+            for (int i = 0; i < tensorView.Data.Length; i++) tensorView.Data[i] = 42.0f;
 
             // Assert: Verify the original CSR weights changed
             Assert.Equal(42.0, csr.Weights[0]);

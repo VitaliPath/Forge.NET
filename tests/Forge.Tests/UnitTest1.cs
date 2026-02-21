@@ -8,9 +8,9 @@ public class CoreTests
     [Fact]
     public void SanityCheck_Backprop_Scalar_As_Tensor()
     {
-        var a = new Tensor(1, 1, new double[] { 2.0 });
-        var b = new Tensor(1, 1, new double[] { -3.0 });
-        var c = new Tensor(1, 1, new double[] { 10.0 });
+        var a = new Tensor(1, 1, new float[] { 2.0f });
+        var b = new Tensor(1, 1, new float[] { -3.0f });
+        var c = new Tensor(1, 1, new float[] { 10.0f });
         
         var d = a.MatMul(b); 
         var e = d + c; 

@@ -1,13 +1,15 @@
 using System;
 using System.Numerics;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Forge.Core;
 
 public class Tensor
 {
-    public readonly double[] Data;
-    public readonly double[] Grad;
+    public readonly float[] Data;
+    public readonly float[] Grad;
     
     public readonly int[] Shape;
     public readonly int[] Strides;
@@ -15,15 +17,14 @@ public class Tensor
     private List<Tensor> _children;
     private Action _backward;
 
-    public Tensor(int rows, int cols, double[]? data = null)
+    public Tensor(int rows, int cols, float[]? data = null)
     {
         Shape = new int[] { rows, cols };
-        
         Strides = new int[] { cols, 1 };
         
         int length = rows * cols;
-        Data = data ?? new double[length];
-        Grad = new double[length];
+        Data = data ?? new float[length];
+        Grad = new float[length];
         
         _children = new List<Tensor>();
         _backward = () => { };
@@ -32,20 +33,21 @@ public class Tensor
     public static Tensor Random(int rows, int cols, int seed = 0)
     {
         var rng = new Random(seed);
-        var data = new double[rows * cols];
-        for(int i = 0; i < data.Length; i++)
+        var data = new float[rows * cols];
+        for (int i = 0; i < data.Length; i++)
         {
-            double u1 = 1.0 - rng.NextDouble();
-            double u2 = 1.0 - rng.NextDouble();
+            float u1 = 1.0f - (float)rng.NextDouble();
+            float u2 = 1.0f - (float)rng.NextDouble();
+            // Box-Muller transform
             double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-            data[i] = randStdNormal;
+            data[i] = (float)randStdNormal;
         }
         return new Tensor(rows, cols, data);
     }
     
     public static Tensor Zeros(int rows, int cols)
     {
-        return new Tensor(rows, cols, new double[rows * cols]);
+        return new Tensor(rows, cols, new float[rows * cols]);
     }
 
     public override string ToString()
@@ -67,69 +69,51 @@ public class Tensor
 
     public Tensor MatMul(Tensor other)
     {
-        // 1. Shape Check: (N, M) @ (M, P) -> (N, P)
         if (this.Shape[1] != other.Shape[0])
         {
             throw new Exception($"Shape Mismatch: Cannot multiply {this.Shape[0]}x{this.Shape[1]} and {other.Shape[0]}x{other.Shape[1]}");
         }
 
-        int n = this.Shape[0]; // A Rows
-        int m = this.Shape[1]; // Shared Dimension
-        int p = other.Shape[1]; // B Cols
+        int n = this.Shape[0]; 
+        int m = this.Shape[1]; 
+        int p = other.Shape[1]; 
 
         var result = new Tensor(n, p);
         result._children.Add(this);
         result._children.Add(other);
 
-        // 2. The Triple Loop (Forward Pass)
-        // Optimization Note: This is the "Naive" implementation. 
-        // In the future, we will parallelize this loops or use BLAS.
         for (int i = 0; i < n; i++)
         {
             for (int j = 0; j < p; j++)
             {
-                double sum = 0.0;
+                float sum = 0.0f;
                 for (int k = 0; k < m; k++)
                 {
-                    // Stride Magic: Manual address calculation
-                    // A[i, k]
                     int idxA = (i * this.Strides[0]) + (k * this.Strides[1]);
-                    // B[k, j]
                     int idxB = (k * other.Strides[0]) + (j * other.Strides[1]);
 
                     sum += this.Data[idxA] * other.Data[idxB];
                 }
                 
-                // C[i, j]
                 int idxResult = (i * result.Strides[0]) + (j * result.Strides[1]);
                 result.Data[idxResult] = sum;
             }
         }
 
-        // 3. The Backward Pass (Your Drill)
         result._backward = () =>
         {
-            // We need "Views" of the Gradients to perform MatMul on them.
-            // We wrap the Grad arrays in temporary Tensors so we can reuse the MatMul function.
-            
-            // Out.Grad view
             var outGrad = new Tensor(result.Shape, result.Strides, result.Grad, null);
-
-            // 1. Calculate A.Grad += Out.Grad @ B.T
             var bT = other.Transpose(); 
-            var dA = outGrad.MatMul(bT); // This is the calculated gradient for A
+            var dA = outGrad.MatMul(bT); 
 
-            // Accumulate into A.Grad (Element-wise Add)
             for (int i = 0; i < this.Grad.Length; i++)
             {
                 this.Grad[i] += dA.Data[i];
             }
 
-            // 2. Calculate B.Grad += A.T @ Out.Grad
             var aT = this.Transpose();
-            var dB = aT.MatMul(outGrad); // This is the calculated gradient for B
+            var dB = aT.MatMul(outGrad); 
 
-            // Accumulate into B.Grad
             for (int i = 0; i < other.Grad.Length; i++)
             {
                 other.Grad[i] += dB.Data[i];
@@ -166,14 +150,6 @@ public class Tensor
         int outRows = Math.Max(a.Shape[0], b.Shape[0]);
         int outCols = Math.Max(a.Shape[1], b.Shape[1]);
 
-        if ((a.Shape[0] != outRows && a.Shape[0] != 1) ||
-            (b.Shape[0] != outRows && b.Shape[0] != 1) ||
-            (a.Shape[1] != outCols && a.Shape[1] != 1) ||
-            (b.Shape[1] != outCols && b.Shape[1] != 1))
-        {
-            throw new Exception($"Incompatible shapes for broadcasting: {a.Shape[0]}x{a.Shape[1]} vs {b.Shape[0]}x{b.Shape[1]}");
-        }
-
         var bResult = new Tensor(outRows, outCols);
         bResult._children.Add(a);
         bResult._children.Add(b);
@@ -191,7 +167,6 @@ public class Tensor
                 int idxB = rB * b.Strides[0] + cB * b.Strides[1];
 
                 int idxOut = i * bResult.Strides[0] + j * bResult.Strides[1];
-
                 bResult.Data[idxOut] = a.Data[idxA] + b.Data[idxB];
             }
         }
@@ -211,7 +186,7 @@ public class Tensor
                     int idxB = rB * b.Strides[0] + cB * b.Strides[1];
 
                     int idxOut = i * bResult.Strides[0] + j * bResult.Strides[1];
-                    double grad = bResult.Grad[idxOut];
+                    float grad = bResult.Grad[idxOut];
 
                     a.Grad[idxA] += grad;
                     b.Grad[idxB] += grad;
@@ -227,20 +202,18 @@ public class Tensor
         var result = new Tensor(this.Shape[0], this.Shape[1]);
         result._children.Add(this);
 
-        // 1. Forward
         for (int i = 0; i < this.Data.Length; i++)
         {
-            double val = this.Data[i];
-            result.Data[i] = val > 0 ? val : 0;
+            float val = this.Data[i];
+            result.Data[i] = val > 0 ? val : 0.0f;
         }
 
-        // 2. Backward
         result._backward = () =>
         {
             for (int i = 0; i < this.Grad.Length; i++)
             {
-                // Gradient flows only if input was > 0
-                double localGrad = result.Data[i] > 0 ? 1.0 : 0.0;
+                // Fixed: Added explicit cast to float
+                float localGrad = result.Data[i] > 0 ? 1.0f : 0.0f; 
                 this.Grad[i] += localGrad * result.Grad[i];
             }
         };
@@ -255,15 +228,16 @@ public class Tensor
 
         for (int i = 0; i < this.Data.Length; i++)
         {
-            result.Data[i] = Math.Tanh(this.Data[i]);
+            // Fixed: Math.Tanh returns double, needs explicit cast to float
+            result.Data[i] = (float)Math.Tanh(this.Data[i]); 
         }
 
         result._backward = () =>
         {
             for (int i = 0; i < this.Grad.Length; i++)
             {
-                double t = result.Data[i]; 
-                double localGrad = (1.0 - t * t);
+                float t = result.Data[i]; 
+                float localGrad = (1.0f - t * t); // Fixed: Typo 'flat' corrected to 'float'
                 this.Grad[i] += localGrad * result.Grad[i];
             }
         };
@@ -292,7 +266,7 @@ public class Tensor
         bool isZero = true;
         for (int i = 0; i < Grad.Length; i++)
         {
-            if (Grad[i] != 0.0)
+            if (Grad[i] != 0.0f)
             {
                 isZero = false;
                 break;
@@ -301,7 +275,7 @@ public class Tensor
 
         if (isZero)
         {
-            for (int i = 0; i < Grad.Length; i++) Grad[i] = 1.0;
+            for (int i = 0; i < Grad.Length; i++) Grad[i] = 1.0f; // Fixed: Added 'f' suffix
         }
 
         topo.Reverse();
@@ -311,54 +285,38 @@ public class Tensor
         }
     }
 
-    /// <summary>
-    /// Applies an in-place exponential decay multiplier to all elements: x = x * exp(-lambda * t).
-    /// Designed to age weights in the Knowledge Graph to prioritize recent interactions.
-    /// </summary>
-    /// <param name="lambda">The decay constant (e.g., ln(2)/half-life).</param>
-    /// <param name="time">The time delta (must be >= 0).</param>
     public void ApplyDecay(double lambda, double time)
     {
-        double t = Math.Max(0, time);
-        double multiplier = Math.Exp(-lambda * t);
-        if (multiplier < 1e-9) multiplier = 0.0;
+        float multiplier = (float)Math.Exp(-lambda * Math.Max(0, time));
+        if (multiplier < 1e-7f) multiplier = 0.0f;
 
         int i = 0;
-        int width = Vector<double>.Count;
+        int width = Vector<float>.Count;
 
         if (Vector.IsHardwareAccelerated && Data.Length >= width)
         {
-            var vMultiplier = new Vector<double>(multiplier);
+            var vMultiplier = new Vector<float>(multiplier);
             for (; i <= Data.Length - width; i += width)
             {
-                var vData = new Vector<double>(Data, i);
+                var vData = new Vector<float>(Data, i);
                 (vData * vMultiplier).CopyTo(Data, i);
             }
         }
-
-        for (; i < Data.Length; i++)
-        {
-            Data[i] *= multiplier;
-        }
+        for (; i < Data.Length; i++) Data[i] *= multiplier;
     }
 
-    private Tensor(int[] shape, int[] strides, double[] data, double[]? grad)
+    private Tensor(int[] shape, int[] strides, float[] data, float[]? grad)
     {
         Shape = shape;
         Strides = strides;
         Data = data;
-        Grad = grad ?? new double[data.Length]; 
-        
+        Grad = grad ?? new float[data.Length]; 
         _children = new List<Tensor>();
         _backward = () => { };
     }
 
     public Tensor Transpose()
     {
-        var newShape = new int[] { Shape[1], Shape[0] };
-        
-        var newStrides = new int[] { Strides[1], Strides[0] };
-        
-        return new Tensor(newShape, newStrides, Data, Grad);
+        return new Tensor(new int[] { Shape[1], Shape[0] }, new int[] { Strides[1], Strides[0] }, Data, Grad);
     }    
 }

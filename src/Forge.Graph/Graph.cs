@@ -6,11 +6,11 @@ namespace Forge.Graph
     public class Edge<T>
     {
         public Node<T> Target { get; set; }
-        public double Weight { get; set; }
+        public float Weight { get; set; }
         
         public long LastModified { get; set; } 
 
-        public Edge(Node<T> target, double weight, long lastModified = 0)
+        public Edge(Node<T> target, float weight, long lastModified = 0)
         {
             Target = target;
             Weight = weight;
@@ -104,7 +104,7 @@ namespace Forge.Graph
         /// Creates the edge if it doesn't exist.
         /// </summary>
         /// <param name="timestamp">FORGE-0011: Optional Unix timestamp of the reinforcement.</param>
-        public void AccumulateEdgeWeight(string fromId, string toId, double delta, long timestamp = 0)
+        public void AccumulateEdgeWeight(string fromId, string toId, float delta, long timestamp = 0)
         {
             if (!_nodes.TryGetValue(fromId, out var source))
                 throw new Exception($"Source node {fromId} missing.");
@@ -170,6 +170,7 @@ namespace Forge.Graph
         public void ApplyDecay(double lambda, long nowUnix)
         {
             const double secondsPerDay = 86400.0;
+            float fLambda = (float)lambda;
 
             Parallel.ForEach(_nodes.Values, ForgeConcurrency.DefaultOptions, node =>
             {
@@ -178,8 +179,9 @@ namespace Forge.Graph
                     foreach (var edge in node.EdgeMap.Values)
                     {
                         double ageInDays = Math.Max(0, (nowUnix - edge.LastModified) / secondsPerDay);
-                        double multiplier = Math.Exp(-lambda * ageInDays);
-                        edge.Weight *= (multiplier < 1e-9) ? 0.0 : multiplier;
+                        float multiplier = MathF.Exp(-fLambda * (float)ageInDays);
+
+                        edge.Weight *= (multiplier < 1e-7f) ? 0.0f : multiplier;
                     }
                 }
             });
@@ -189,7 +191,7 @@ namespace Forge.Graph
         /// FORGE-014: Core edge update logic.
         /// Assumes the caller has already acquired the necessary locks on SyncRoot.
         /// </summary>
-        private void UpdateEdgeInternal(Node<T> src, Node<T> dest, double delta, long timestamp)
+        private void UpdateEdgeInternal(Node<T> src, Node<T> dest, float delta, long timestamp)
         {
             if (src.EdgeMap.TryGetValue(dest.Id, out var existingEdge))
             {
@@ -202,7 +204,7 @@ namespace Forge.Graph
             }
         }
 
-        private void UpdateEdge(Node<T> src, Node<T> dest, double delta, long timestamp)
+        private void UpdateEdge(Node<T> src, Node<T> dest, float delta, long timestamp)
         {
             lock (src.SyncRoot)
             {
@@ -219,7 +221,7 @@ namespace Forge.Graph
             }
         }
 
-        public void AddEdge(string fromId, string toId, double weight)
+        public void AddEdge(string fromId, string toId, float weight)
         {
             AccumulateEdgeWeight(fromId, toId, weight);
         }
@@ -276,7 +278,7 @@ namespace Forge.Graph
             rowPtr[n] = totalEdges;
 
             int[] colIdx = new int[totalEdges];
-            double[] weights = new double[totalEdges];
+            float[] weights = new float[totalEdges];
             long[] lastModified = new long[totalEdges];
 
             int edgeIdx = 0;

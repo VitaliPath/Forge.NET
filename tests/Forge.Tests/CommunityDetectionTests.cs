@@ -19,14 +19,14 @@ namespace Forge.Tests
             // Fix: AddEdge takes IDs (strings), not Node objects.
             graph.AddNode("A", "A");
             graph.AddNode("B", "B");
-            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
 
             // Island 2: C-D-E
             graph.AddNode("C", "C");
             graph.AddNode("D", "D");
             graph.AddNode("E", "E");
-            graph.AddEdge("C", "D", 1.0);
-            graph.AddEdge("D", "E", 1.0);
+            graph.AddEdge("C", "D", 1.0f);
+            graph.AddEdge("D", "E", 1.0f);
 
             // Act: Run detection
             var detector = new ConnectedComponents<string>(); // Namespace match
@@ -66,15 +66,15 @@ namespace Forge.Tests
             // Island 1 (Strongly linked)
             graph.AddNode("A", "A");
             graph.AddNode("B", "B");
-            graph.AddEdge("A", "B", 1.0);
+            graph.AddEdge("A", "B", 1.0f);
 
             // Island 2 (Strongly linked)
             graph.AddNode("C", "C");
             graph.AddNode("D", "D");
-            graph.AddEdge("C", "D", 1.0);
+            graph.AddEdge("C", "D", 1.0f);
 
             // The Bridge (Weak noise link)
-            graph.AddEdge("B", "C", 0.05);
+            graph.AddEdge("B", "C", 0.05f);
 
             var detector = new ConnectedComponents<string>();
 
@@ -100,7 +100,7 @@ namespace Forge.Tests
             // Arrange
             var graph = new Graph<string>();
             for (int i = 0; i < 1000; i++) graph.AddNode(i.ToString(), "data");
-            for (int i = 0; i < 999; i++) graph.AddEdge(i.ToString(), (i + 1).ToString(), 1.0);
+            for (int i = 0; i < 999; i++) graph.AddEdge(i.ToString(), (i + 1).ToString(), 1.0f);
 
             var csr = graph.CompileCsr();
             var sequential = new ConnectedComponents<string>();

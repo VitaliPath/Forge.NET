@@ -7,16 +7,13 @@ public class Linear : IModule
     private Tensor Weight;
     private Tensor Bias;
 
-    public Linear(int nin, int nout, int seed = 0, bool useHeInit = true) // Add flag
+    public Linear(int nin, int nout, int seed = 0, bool useHeInit = true)
     {
         Weight = Tensor.Random(nin, nout, seed);
-        
-        // He Init (for ReLU) vs Xavier Init (for Tanh)
-        double factor = useHeInit ? 2.0 : 1.0; 
-        double scale = Math.Sqrt(factor / nin); 
-        
-        for(int i=0; i < Weight.Data.Length; i++) Weight.Data[i] *= scale;
+        double factor = useHeInit ? 2.0 : 1.0;
+        float scale = (float)Math.Sqrt(factor / nin);
 
+        for (int i = 0; i < Weight.Data.Length; i++) Weight.Data[i] *= scale;
         Bias = Tensor.Zeros(1, nout);
     }
 

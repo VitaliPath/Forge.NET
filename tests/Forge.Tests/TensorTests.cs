@@ -10,15 +10,15 @@ public class TensorTests
     {
         // 1. Setup
         // A is (1, 2) -> [[2, 3]]
-        var a = new Tensor(1, 2, new double[] { 2.0, 3.0 });
+        var a = new Tensor(1, 2, new float[] { 2.0f, 3.0f });
 
         // B is (2, 1) -> [[4], [5]]
-        var b = new Tensor(2, 1, new double[] { 4.0, 5.0 });
+        var b = new Tensor(2, 1, new float[] { 4.0f, 5.0f });
 
         // 2. Forward
         var c = a.MatMul(b);
 
-        // Check Shape (1, 1)
+        // Check Shape (1, 1
         Assert.Equal(1, c.Shape[0]);
         Assert.Equal(1, c.Shape[1]);
 
@@ -43,7 +43,7 @@ public class TensorTests
     {
         // Arrange: Target 50% decay
         // lambda = ln(2) / half_life. For 138.6 days, lambda is ~0.005
-        var tensor = new Tensor(1, 2, new double[] { 100.0, 50.0 });
+        var tensor = new Tensor(1, 2, new float[] { 100.0f, 50.0f });
         double lambda = 0.005;
         double halfLife = 138.629; // ln(2) / 0.005
 
@@ -59,7 +59,7 @@ public class TensorTests
     public void ApplyDecay_Clamps_NegativeTime()
     {
         // Arrange: Use negative time (simulating clock drift)
-        var tensor = new Tensor(1, 1, new double[] { 10.0 });
+        var tensor = new Tensor(1, 1, new float[] { 10.0f });
         
         // Act: Decay with negative time should be clamped to 0 (multiplier = 1.0)
         tensor.ApplyDecay(0.5, -100.0);
@@ -72,7 +72,7 @@ public class TensorTests
     public void ApplyDecay_Clamps_Subnormals()
     {
         // Arrange: Massive time delta that would result in a subnormal float
-        var tensor = new Tensor(1, 1, new double[] { 1.0 });
+        var tensor = new Tensor(1, 1, new float[] { 1.0f });
         
         // Act: lambda=1, t=100 -> exp(-100) is ~3.7e-44 (well below 1e-9)
         tensor.ApplyDecay(1.0, 100.0);

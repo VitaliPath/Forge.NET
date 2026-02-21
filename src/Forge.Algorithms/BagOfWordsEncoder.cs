@@ -6,7 +6,7 @@ namespace Forge.Algorithms;
 public class BagOfWordsEncoder
 {
     public readonly Dictionary<string, int> Vocab;
-    private readonly double[] _idfWeights;
+    private readonly float[] _idfWeights;
     private readonly int _numDocs;
 
     private static readonly HashSet<string> StopWords = new()
@@ -38,11 +38,11 @@ public class BagOfWordsEncoder
             }
         }
 
-        _idfWeights = new double[Vocab.Count];
+        _idfWeights = new float[Vocab.Count];
         foreach (var entry in Vocab)
         {
             double df = docFreq[entry.Key];
-            _idfWeights[entry.Value] = Math.Log((double)_numDocs / df);
+            _idfWeights[entry.Value] = (float)Math.Log((double)_numDocs / df);
         }
     }
 
@@ -55,17 +55,17 @@ public class BagOfWordsEncoder
         if (tfTensor.Data.Length != _idfWeights.Length)
             throw new ArgumentException("Tensor dimensions must match vocabulary size.");
 
-        Span<double> data = tfTensor.Data;
-        ReadOnlySpan<double> weights = _idfWeights;
+        Span<float> data = tfTensor.Data;
+        ReadOnlySpan<float> weights = _idfWeights;
         int i = 0;
-        int width = Vector<double>.Count;
+        int width = Vector<float>.Count;
 
         if (Vector.IsHardwareAccelerated && data.Length >= width)
         {
             for (; i <= data.Length - width; i += width)
             {
-                var vData = new Vector<double>(data.Slice(i));
-                var vWeights = new Vector<double>(weights.Slice(i));
+                var vData = new Vector<float>(data.Slice(i));
+                var vWeights = new Vector<float>(weights.Slice(i));
                 (vData * vWeights).CopyTo(data.Slice(i));
             }
         }
@@ -96,16 +96,11 @@ public class BagOfWordsEncoder
     public Tensor Encode(string text)
     {
         var t = Tensor.Zeros(1, Vocab.Count);
-
         var words = Tokenize(text);
         foreach (var word in words)
         {
-            if (Vocab.TryGetValue(word, out int idx))
-            {
-                t.Data[idx] += 1.0;
-            }
+            if (Vocab.TryGetValue(word, out int idx)) t.Data[idx] += 1.0f;
         }
-
         return t;
     }
 
