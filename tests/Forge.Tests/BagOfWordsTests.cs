@@ -70,7 +70,7 @@ public class BagOfWordsTests
         // tf is 1.0, so 1.0 * 1.0986
         Assert.True(tensor.Data[uniqueIdx] > 1.0);
     }
-    
+
     [Fact]
     public void SanityCheck_CosineSimilarity()
     {
@@ -88,7 +88,7 @@ public class BagOfWordsTests
         var t3 = encoder.Encode("apple");
         var t4 = encoder.Encode("banana");
         Assert.Equal(0.0, BagOfWordsEncoder.CosineSimilarity(t3, t4), 4);
-        
+
         // 3. Partial Overlap
         // "apple banana" [1, 1] vs "apple" [1, 0]
         // Dot = 1*1 + 1*0 = 1
@@ -97,5 +97,26 @@ public class BagOfWordsTests
         var t5 = encoder.Encode("apple banana");
         var t6 = encoder.Encode("apple");
         Assert.Equal(0.7071, BagOfWordsEncoder.CosineSimilarity(t5, t6), 4);
+    }
+
+    [Fact]
+    public void TransformTfIdf_CalculatesCorrectValues_LinearTime()
+    {
+        // Arrange: 2 documents, "apple" appears in both, "banana" only in one.
+        var corpus = new List<string> { "apple banana", "apple" };
+        var encoder = new BagOfWordsEncoder(corpus);
+        var tensor = encoder.Encode("apple banana");
+
+        // Act
+        encoder.TransformTfIdf(tensor);
+
+        // Assert
+        int appleIdx = encoder.Vocab["apple"];
+        int bananaIdx = encoder.Vocab["banana"];
+
+        // IDF(apple) = log(2/2) = 0
+        // IDF(banana) = log(2/1) = 0.693...
+        Assert.Equal(0, tensor.Data[appleIdx], precision: 5);
+        Assert.True(tensor.Data[bananaIdx] > 0.69);
     }
 }

@@ -1,3 +1,4 @@
+using System.Numerics;
 using Forge.Core;
 
 namespace Forge.Algorithms;
@@ -5,7 +6,7 @@ namespace Forge.Algorithms;
 public class BagOfWordsEncoder
 {
     public readonly Dictionary<string, int> Vocab;
-    private readonly Dictionary<string, int> _docFreq;
+    private readonly double[] _idfWeights;
     private readonly int _numDocs;
 
     private static readonly HashSet<string> StopWords = new()
@@ -20,49 +21,58 @@ public class BagOfWordsEncoder
     public BagOfWordsEncoder(IEnumerable<string> corpus)
     {
         Vocab = new Dictionary<string, int>();
-        _docFreq = new Dictionary<string, int>();
+        var docFreq = new Dictionary<string, int>();
 
         var materializedCorpus = corpus.ToList();
         _numDocs = materializedCorpus.Count;
 
         int index = 0;
-
         foreach (var text in materializedCorpus)
         {
             var words = Tokenize(text).Distinct();
             foreach (var word in words)
             {
-                if (!Vocab.ContainsKey(word))
-                {
-                    Vocab[word] = index++;
-                }
-
-                if (!_docFreq.ContainsKey(word))
-                {
-                    _docFreq[word] = 0;
-                }
-                _docFreq[word]++;
+                if (!Vocab.ContainsKey(word)) Vocab[word] = index++;
+                if (!docFreq.ContainsKey(word)) docFreq[word] = 0;
+                docFreq[word]++;
             }
+        }
+
+        _idfWeights = new double[Vocab.Count];
+        foreach (var entry in Vocab)
+        {
+            double df = docFreq[entry.Key];
+            _idfWeights[entry.Value] = Math.Log((double)_numDocs / df);
         }
     }
 
     /// <summary>
-    /// Transforms a raw TF vector into a TF-IDF weighted vector.
-    /// Formula: w = tf * log(N / df)
+    /// FORGE-024: Transforms a raw TF vector into a TF-IDF weighted vector.
+    /// Optimized for O(1) weight lookup and SIMD hardware acceleration.
     /// </summary>
     public void TransformTfIdf(Tensor tfTensor)
     {
-        if (tfTensor.Data.Length != Vocab.Count)
+        if (tfTensor.Data.Length != _idfWeights.Length)
             throw new ArgumentException("Tensor dimensions must match vocabulary size.");
 
-        for (int i = 0; i < Vocab.Count; i++)
+        Span<double> data = tfTensor.Data;
+        ReadOnlySpan<double> weights = _idfWeights;
+        int i = 0;
+        int width = Vector<double>.Count;
+
+        if (Vector.IsHardwareAccelerated && data.Length >= width)
         {
-            string word = Vocab.ElementAt(i).Key;
+            for (; i <= data.Length - width; i += width)
+            {
+                var vData = new Vector<double>(data.Slice(i));
+                var vWeights = new Vector<double>(weights.Slice(i));
+                (vData * vWeights).CopyTo(data.Slice(i));
+            }
+        }
 
-            double df = _docFreq[word];
-            double idf = Math.Log(_numDocs / df);
-
-            tfTensor.Data[i] *= idf;
+        for (; i < data.Length; i++)
+        {
+            data[i] *= weights[i];
         }
     }
 
