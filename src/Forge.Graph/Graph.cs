@@ -119,6 +119,31 @@ namespace Forge.Graph
         }
 
         /// <summary>
+        /// FORGE-021: Applies graph-wide temporal decay to all edges.
+        /// Formula: w = w * exp(-lambda * delta_t)
+        /// </summary>
+        /// <param name="lambda">The decay constant.</param>
+        /// <param name="nowUnix">The current reference timestamp.</param>
+        public void ApplyDecay(double lambda, long nowUnix)
+        {
+            const double secondsPerDay = 86400.0;
+
+            Parallel.ForEach(_nodes.Values, node =>
+            {
+                lock (node.SyncRoot)
+                {
+                    foreach (var edge in node.EdgeMap.Values)
+                    {
+                        double ageInDays = Math.Max(0, (nowUnix - edge.LastModified) / secondsPerDay);
+                        double multiplier = Math.Exp(-lambda * ageInDays);
+
+                        edge.Weight *= (multiplier < 1e-9) ? 0.0 : multiplier;
+                    }
+                }
+            });
+        }
+
+        /// <summary>
         /// FORGE-014: Core edge update logic.
         /// Assumes the caller has already acquired the necessary locks on SyncRoot.
         /// </summary>

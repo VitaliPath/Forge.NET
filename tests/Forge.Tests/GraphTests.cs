@@ -207,5 +207,44 @@ namespace Forge.Tests
             Assert.Equal(2, csr.NodeCount); // A and C remain
             Assert.Equal(0, csr.EdgeCount); // All edges touched B
         }
+
+        [Fact]
+        public void ApplyDecay_Correctly_Ages_Weights()
+        {
+            // Arrange: 138.6 days is exactly 1 half-life for lambda 0.005
+            var graph = new Graph<string>();
+            graph.AddNode("A", "A");
+            graph.AddNode("B", "B");
+
+            long now = 200000;
+            long then = now - (long)(138.629 * 86400); // 1 half-life ago
+
+            graph.AccumulateEdgeWeight("A", "B", 10.0, then);
+
+            // Act
+            graph.ApplyDecay(0.005, now);
+
+            // Assert
+            var edge = graph.GetNode("A").Neighbors.First();
+            Assert.Equal(5.0, edge.Weight, precision: 1);
+        }
+
+        [Fact]
+        public void Csr_WeightsAsTensor_Aliasing_Verified()
+        {
+            // Arrange
+            var graph = new Graph<string>();
+            graph.AddNode("A", "A");
+            graph.AddNode("B", "B");
+            graph.AddEdge("A", "B", 1.0);
+            var csr = graph.CompileCsr();
+
+            // Act: Mutate the weight via the Tensor view
+            var tensorView = csr.WeightsAsTensor;
+            for (int i = 0; i < tensorView.Data.Length; i++) tensorView.Data[i] = 42.0;
+
+            // Assert: Verify the original CSR weights changed
+            Assert.Equal(42.0, csr.Weights[0]);
+        }
     }
 }
