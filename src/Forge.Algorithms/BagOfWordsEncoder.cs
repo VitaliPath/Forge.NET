@@ -78,7 +78,7 @@ public class BagOfWordsEncoder
         }
     }
 
-    public List<string> GetTopWords(double[] vector, int count)
+    public List<string> GetTopWords(float[] vector, int count)
     {
         if (vector.Length != Vocab.Count)
             throw new ArgumentException($"Vector size ({vector.Length}) must match Vocab size ({Vocab.Count}).");
@@ -110,7 +110,7 @@ public class BagOfWordsEncoder
     /// KG-039 / FORGE-020: Bridge to SIMD-accelerated similarity.
     /// Utilizes the VectorMath MathBridge for hardware-optimized execution.
     /// </summary>
-    public static double CosineSimilarity(Tensor a, Tensor b)
+    public static float CosineSimilarity(Tensor a, Tensor b)
     {
         return VectorMath.CosineSimilarity(a.Data, b.Data);
     }
