@@ -61,4 +61,34 @@ public class VectorMathTests
         double expected = Math.Sqrt(40.0);
         Assert.Equal(expected, VectorMath.L2Distance(a, b), precision: 5);
     }
+
+    [Fact]
+    public void CosineSimilarity_Handles_Zero_Vectors_Safely()
+    {
+        // Arrange
+        var a = new float[] { 0, 0, 0 };
+        var b = new float[] { 1, 2, 3 };
+
+        // Act
+        float result = VectorMath.CosineSimilarity(a, b);
+
+        // Assert
+        Assert.Equal(0.0f, result);
+    }
+
+    [Fact]
+    public void CosineSimilarity_Matches_Scalar_Expectation()
+    {
+        // Simple 3-4-5 triangle style check
+        var a = new float[] { 3.0f, 0.0f };
+        var b = new float[] { 0.0f, 4.0f };
+
+        // Orthogonal vectors should be 0
+        Assert.Equal(0.0f, VectorMath.CosineSimilarity(a, b), precision: 5);
+
+        var c = new float[] { 1.0f, 1.0f };
+        var d = new float[] { 1.0f, 1.0f };
+        // Identical vectors should be 1.0
+        Assert.Equal(1.0f, VectorMath.CosineSimilarity(c, d), precision: 5);
+    }
 }

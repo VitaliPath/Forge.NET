@@ -84,13 +84,52 @@ public static class VectorMath
         for (; i < v.Length; i++) v[i] *= invMag;
     }
 
-    public static float CosineSimilarity(ReadOnlySpan<float> a, ReadOnlySpan<float> b)
+    /// <summary>
+    /// FORGE-058: SIMD-vectorized single-pass Cosine Similarity.
+    /// Calculates Dot Product and both Magnitudes in a single sweep to minimize memory traffic.
+    /// </summary>
+    public static float CosineSimilarity(float[] vecA, float[] vecB)
     {
-        float dot = DotProduct(a, b);
-        float magA = (float)Math.Sqrt(DotProduct(a, a));
-        float magB = (float)Math.Sqrt(DotProduct(b, b));
+        if (vecA.Length != vecB.Length)
+            throw new ArgumentException("Vectors must have identical dimensions.");
 
-        if (magA == 0 || magB == 0) return 0;
-        return dot / (magA * magB);
+        float dot = 0.0f;
+        float magA = 0.0f;
+        float magB = 0.0f;
+
+        int i = 0;
+        int width = Vector<float>.Count;
+
+        if (Vector.IsHardwareAccelerated && vecA.Length >= width)
+        {
+            var vDot = Vector<float>.Zero;
+            var vMagA = Vector<float>.Zero;
+            var vMagB = Vector<float>.Zero;
+
+            for (; i <= vecA.Length - width; i += width)
+            {
+                var va = new Vector<float>(vecA, i);
+                var vb = new Vector<float>(vecB, i);
+
+                vDot += va * vb;
+                vMagA += va * va;
+                vMagB += vb * vb;
+            }
+
+            dot = Vector.Dot(vDot, Vector<float>.One);
+            magA = Vector.Dot(vMagA, Vector<float>.One);
+            magB = Vector.Dot(vMagB, Vector<float>.One);
+        }
+
+        for (; i < vecA.Length; i++)
+        {
+            dot += vecA[i] * vecB[i];
+            magA += vecA[i] * vecA[i];
+            magB += vecB[i] * vecB[i];
+        }
+
+        float denominator = (float)(Math.Sqrt(magA) * Math.Sqrt(magB));
+        
+        return denominator < 1e-10f ? 0.0f : dot / denominator;
     }
 }
