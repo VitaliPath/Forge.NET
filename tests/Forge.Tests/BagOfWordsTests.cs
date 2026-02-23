@@ -119,4 +119,30 @@ public class BagOfWordsTests
         Assert.Equal(0, tensor.Data[appleIdx], precision: 5);
         Assert.True(tensor.Data[bananaIdx] > 0.69);
     }
+
+    [Fact]
+    public void InverseMapping_Resolves_Indices_To_Tokens_In_Constant_Time()
+    {
+        // Arrange
+        var corpus = new[] { "atlas discovery engine" };
+        var encoder = new BagOfWordsEncoder(corpus);
+
+        // Act
+        foreach (var entry in encoder.Vocab)
+        {
+            string tokenFromDictionary = entry.Key;
+            int index = entry.Value;
+
+            // Use reflection or make _indexToWord internal/public for deep testing, 
+            // but testing through GetTopWords is the clean architectural way:
+            var vector = new float[encoder.Vocab.Count];
+            vector[index] = 1.0f;
+
+            var topWords = encoder.GetTopWords(vector, 1);
+
+            // Assert
+            Assert.Single(topWords);
+            Assert.Equal(tokenFromDictionary, topWords[0]);
+        }
+    }
 }

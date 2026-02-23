@@ -7,6 +7,7 @@ public class BagOfWordsEncoder
 {
     public readonly Dictionary<string, int> Vocab;
     private readonly float[] _idfWeights;
+    private readonly string[] _indexToWord;
     private readonly int _numDocs;
 
     private static readonly HashSet<string> StopWords = new()
@@ -41,10 +42,13 @@ public class BagOfWordsEncoder
         }
 
         _idfWeights = new float[Vocab.Count];
+        _indexToWord = new string[Vocab.Count];
+
         foreach (var entry in Vocab)
         {
             double df = docFreq[entry.Key];
             _idfWeights[entry.Value] = (float)Math.Log((double)_numDocs / df);
+            _indexToWord[entry.Value] = entry.Key;
         }
     }
 
@@ -86,7 +90,7 @@ public class BagOfWordsEncoder
         return vector
             .Select((weight, index) => new
             {
-                Word = Vocab.ElementAt(index).Key,
+                Word = _indexToWord[index],
                 Weight = weight
             })
             .OrderByDescending(x => x.Weight)
