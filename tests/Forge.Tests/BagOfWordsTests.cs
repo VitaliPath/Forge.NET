@@ -145,4 +145,41 @@ public class BagOfWordsTests
             Assert.Equal(tokenFromDictionary, topWords[0]);
         }
     }
+
+    [Fact]
+public void GetTopWords_Heap_Maintains_Parity_With_High_Entropy_Input()
+{
+    // Arrange
+    var corpus = new[] { "apple", "banana", "cherry", "date", "elderberry" };
+    var encoder = new BagOfWordsEncoder(corpus);
+    var vector = new float[encoder.Vocab.Count];
+    
+    // Assign specific weights
+    vector[encoder.Vocab["apple"]] = 0.1f;
+    vector[encoder.Vocab["cherry"]] = 0.9f;
+    vector[encoder.Vocab["elderberry"]] = 0.4f;
+
+    // Act: Request top 2
+    var top2 = encoder.GetTopWords(vector, 2);
+
+    // Assert
+    Assert.Equal(2, top2.Count);
+    Assert.Equal("CHERRY", top2[0].ToUpper());      // Highest
+    Assert.Equal("ELDERBERRY", top2[1].ToUpper());  // Second Highest
+}
+
+    [Fact]
+    public void GetTopWords_Handles_Sparse_Vectors_Gracefully()
+    {
+        // Arrange: Request 10 words, but only 2 have weights
+        var corpus = new[] { "signal", "noise" };
+        var encoder = new BagOfWordsEncoder(corpus);
+        var vector = encoder.Encode("signal noise").Data;
+
+        // Act
+        var results = encoder.GetTopWords(vector, 10);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+    }
 }

@@ -87,16 +87,36 @@ public class BagOfWordsEncoder
         if (vector.Length != Vocab.Count)
             throw new ArgumentException($"Vector size ({vector.Length}) must match Vocab size ({Vocab.Count}).");
 
-        return vector
-            .Select((weight, index) => new
+        var topK = new PriorityQueue<int, float>();
+
+        for (int i = 0; i < vector.Length; i++)
+        {
+            float weight = vector[i];
+
+            if (weight <= 0.0001f) continue;
+
+            if (topK.Count < count)
             {
-                Word = _indexToWord[index],
-                Weight = weight
-            })
-            .OrderByDescending(x => x.Weight)
-            .Take(count)
-            .Select(x => x.Word)
-            .ToList();
+                topK.Enqueue(i, weight);
+            }
+            else
+            {
+                if (topK.TryPeek(out _, out float minWeight) && weight > minWeight)
+                {
+                    topK.Dequeue();
+                    topK.Enqueue(i, weight);
+                }
+            }
+        }
+
+        var results = new List<string>();
+        while (topK.Count > 0)
+        {
+            results.Add(_indexToWord[topK.Dequeue()]);
+        }
+
+        results.Reverse();
+        return results;
     }
 
     public Tensor Encode(string text)
