@@ -183,7 +183,7 @@ public class BagOfWordsEncoder
     {
         foreach (char c in token)
         {
-            if (!char.IsLetterOrDigit(c)) return false;
+            if (!char.IsLetterOrDigit(c) && c != '_') return false;
         }
         return true;
     }
