@@ -318,5 +318,34 @@ namespace Forge.Tests
                 Assert.Same(masterReference, node);
             }
         }
+
+        [Fact]
+        public void GetTopologyHash_Detects_Minor_Structural_Drift()
+        {
+            // Arrange: Create two identical graphs
+            var g1 = new Graph<string>();
+            g1.AddNode("A", "data");
+            g1.AddNode("B", "data");
+            g1.AddEdge("A", "B", 1.0f);
+
+            var g2 = new Graph<string>();
+            g2.AddNode("A", "data");
+            g2.AddNode("B", "data");
+            g2.AddEdge("A", "B", 1.0f);
+
+            // Act
+            var hash1 = g1.CompileCsr().GetTopologyHash();
+            var hash2 = g2.CompileCsr().GetTopologyHash();
+
+            // Assert: Identity stability
+            Assert.Equal(hash1, hash2);
+
+            // Act: Introduce minor weight drift in G2
+            g2.AddEdge("A", "B", 0.0001f); // Weight is now 1.0001
+            var hash3 = g2.CompileCsr().GetTopologyHash();
+
+            // Assert: Avalanche effect (hash must diverge)
+            Assert.NotEqual(hash1, hash3);
+        }
     }
 }

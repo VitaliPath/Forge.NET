@@ -1,6 +1,7 @@
 using Forge.Core;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Forge.Graph
@@ -33,6 +34,20 @@ namespace Forge.Graph
             LastModified = lastModified;
             IdToIndex = idToIndex;
             IndexToId = indexToId;
+        }
+
+        /// <summary>
+        /// FORGE-062: Generates a deterministic SHA-256 fingerprint of the graph topology.
+        /// Hashing order: RowPtr -> ColIdx -> Weights.
+        /// </summary>
+        public byte[] GetTopologyHash()
+        {
+            // Zero-copy cast of numeric arrays to byte spans
+            var rowPtrBytes = MemoryMarshal.AsBytes(RowPtr.AsSpan());
+            var colIdxBytes = MemoryMarshal.AsBytes(ColIdx.AsSpan());
+            var weightsBytes = MemoryMarshal.AsBytes(Weights.AsSpan());
+
+            return HashingBridge.GenerateHash(rowPtrBytes, colIdxBytes, weightsBytes);
         }
 
         /// <summary>
