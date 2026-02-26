@@ -347,5 +347,38 @@ namespace Forge.Tests
             // Assert: Avalanche effect (hash must diverge)
             Assert.NotEqual(hash1, hash3);
         }
+
+        [Fact]
+        public void SaveAndLoad_Maintains_Bit_Level_Integrity()
+        {
+            // Arrange: Build a realistic graph
+            var originalGraph = new Graph<string>();
+            originalGraph.AddNode("N1", "Data1");
+            originalGraph.AddNode("N2", "Data2");
+            originalGraph.AddEdge("N1", "N2", 0.75f);
+
+            var originalCsr = originalGraph.CompileCsr();
+            using var ms = new MemoryStream();
+
+            // Act: Save and Load
+            originalCsr.Save(ms);
+            ms.Position = 0;
+            var loadedCsr = GraphCsr.Load(ms);
+
+            // Assert: Check Structural Parity
+            Assert.Equal(originalCsr.NodeCount, loadedCsr.NodeCount);
+            Assert.Equal(originalCsr.EdgeCount, loadedCsr.EdgeCount);
+
+            // Assert: Check Numeric Accuracy (Weights & Timestamps)
+            Assert.Equal(originalCsr.Weights[0], loadedCsr.Weights[0]);
+            Assert.Equal(originalCsr.LastModified[0], loadedCsr.LastModified[0]);
+
+            // Assert: Check Identity Mapping
+            Assert.Equal("N1", loadedCsr.IndexToId[0]);
+            Assert.True(loadedCsr.IdToIndex.ContainsKey("N2"));
+
+            // Assert: Final Checksum Parity (FORGE-062 Validation)
+            Assert.Equal(originalCsr.GetTopologyHash(), loadedCsr.GetTopologyHash());
+        }
     }
 }

@@ -2,6 +2,7 @@ using Forge.Core;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Forge.Graph
@@ -12,6 +13,8 @@ namespace Forge.Graph
     /// </summary>
     public readonly struct GraphCsr
     {
+        private const uint MagicBytes = 0x46524745; // "FRGE"
+        private const int CurrentVersion = 1;
         public readonly int[] RowPtr;    // Starting index for each node
         public readonly int[] ColIdx;    // Destination indices
         public readonly float[] Weights;  // Edge gravity (SoA)
@@ -48,6 +51,72 @@ namespace Forge.Graph
             var weightsBytes = MemoryMarshal.AsBytes(Weights.AsSpan());
 
             return HashingBridge.GenerateHash(rowPtrBytes, colIdxBytes, weightsBytes);
+        }
+
+        /// <summary>
+        /// FORGE-063: Performs high-speed binary serialization of the CSR Structure-of-Arrays.
+        /// </summary>
+        public void Save(Stream stream)
+        {
+            using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+
+            // 1. Header
+            writer.Write(MagicBytes);
+            writer.Write(CurrentVersion);
+            writer.Write(NodeCount);
+            writer.Write(EdgeCount);
+
+            // 2. Numeric Buffers (Bulk Write)
+            writer.Write(MemoryMarshal.AsBytes(RowPtr.AsSpan()));
+            writer.Write(MemoryMarshal.AsBytes(ColIdx.AsSpan()));
+            writer.Write(MemoryMarshal.AsBytes(Weights.AsSpan()));
+            writer.Write(MemoryMarshal.AsBytes(LastModified.AsSpan()));
+
+            // 3. String Metadata (Identity Pool)
+            foreach (var id in IndexToId)
+            {
+                writer.Write(id);
+            }
+        }
+
+        /// <summary>
+        /// FORGE-063: Re-hydrates a GraphCsr snapshot directly into SoA buffers.
+        /// </summary>
+        public static GraphCsr Load(Stream stream)
+        {
+            using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+
+            // 1. Validate Header
+            if (reader.ReadUInt32() != MagicBytes) throw new InvalidDataException("Invalid Forge Snapshot Magic Bytes.");
+            if (reader.ReadInt32() != CurrentVersion) throw new InvalidDataException("Unsupported GraphCsr Schema Version.");
+
+            int nodeCount = reader.ReadInt32();
+            int edgeCount = reader.ReadInt32();
+
+            // 2. Allocate SoA Buffers
+            int[] rowPtr = new int[nodeCount + 1];
+            int[] colIdx = new int[edgeCount];
+            float[] weights = new float[edgeCount];
+            long[] lastModified = new long[edgeCount];
+
+            // 3. Bulk Read numeric data
+            reader.Read(MemoryMarshal.AsBytes(rowPtr.AsSpan()));
+            reader.Read(MemoryMarshal.AsBytes(colIdx.AsSpan()));
+            reader.Read(MemoryMarshal.AsBytes(weights.AsSpan()));
+            reader.Read(MemoryMarshal.AsBytes(lastModified.AsSpan()));
+
+            // 4. Reconstruct Identity Mappings
+            string[] indexToId = new string[nodeCount];
+            var idToIndex = new Dictionary<string, int>(nodeCount, StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < nodeCount; i++)
+            {
+                string id = reader.ReadString();
+                indexToId[i] = id;
+                idToIndex.Add(id, i);
+            }
+
+            return new GraphCsr(rowPtr, colIdx, weights, lastModified, idToIndex, indexToId);
         }
 
         /// <summary>
