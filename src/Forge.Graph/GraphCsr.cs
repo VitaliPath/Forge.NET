@@ -1,5 +1,6 @@
 using Forge.Core;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -7,6 +8,11 @@ using System.Threading.Tasks;
 
 namespace Forge.Graph
 {
+    /// <summary>
+    /// FORGE-064: Represents an edge that crosses a cluster boundary.
+    /// </summary>
+    public record BoundaryEdge(int SourceIndex, int TargetIndex, float Weight);
+
     /// <summary>
     /// FORGE-057: High-performance CSR storage. 
     /// Implements Structure-of-Arrays (SoA) for SIMD-ready graph operations.
@@ -37,6 +43,58 @@ namespace Forge.Graph
             LastModified = lastModified;
             IdToIndex = idToIndex;
             IndexToId = indexToId;
+        }
+
+        /// <summary>
+        /// FORGE-064: Identifies all edges crossing the perimeter of the specified group.
+        /// Optimized for O(E_s) traversal where E_s is the edge-count of the subset.
+        /// </summary>
+        /// <param name="groupIndices">The indices of nodes within the focused cluster.</param>
+        public List<BoundaryEdge> GetBoundaryEdges(HashSet<int> groupIndices)
+        {
+            var boundary = new ConcurrentBag<BoundaryEdge>();
+
+            var localRowPtr = this.RowPtr;
+            var localColIdx = this.ColIdx;
+            var localWeights = this.Weights;
+
+            if (groupIndices.Count > 500)
+            {
+                Parallel.ForEach(groupIndices, ForgeConcurrency.DefaultOptions, u =>
+                {
+                    ScanBoundaryInternal(u, groupIndices, boundary, localRowPtr, localColIdx, localWeights);
+                });
+            }
+            else
+            {
+                foreach (int u in groupIndices)
+                {
+                    ScanBoundaryInternal(u, groupIndices, boundary, localRowPtr, localColIdx, localWeights);
+                }
+            }
+
+            return boundary.ToList();
+        }
+
+        private static void ScanBoundaryInternal(
+            int u,
+            HashSet<int> groupIndices,
+            ConcurrentBag<BoundaryEdge> results,
+            int[] rowPtr,
+            int[] colIdx,
+            float[] weights)
+        {
+            int start = rowPtr[u];
+            int end = rowPtr[u + 1];
+
+            for (int k = start; k < end; k++)
+            {
+                int v = colIdx[k];
+                if (!groupIndices.Contains(v))
+                {
+                    results.Add(new BoundaryEdge(u, v, weights[k]));
+                }
+            }
         }
 
         /// <summary>

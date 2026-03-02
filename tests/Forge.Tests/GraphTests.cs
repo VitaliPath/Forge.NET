@@ -380,5 +380,46 @@ namespace Forge.Tests
             // Assert: Final Checksum Parity (FORGE-062 Validation)
             Assert.Equal(originalCsr.GetTopologyHash(), loadedCsr.GetTopologyHash());
         }
+
+        [Fact]
+        public void GetBoundaryEdges_Identifies_Cross_Cluster_Links_With_Precision()
+        {
+            // Arrange: Create a graph with a specific bridge between two functional islands
+            var graph = new Graph<string>();
+
+            // Cluster 1: The "Inside" group
+            graph.AddNode("A", "data");
+            graph.AddNode("B", "data");
+            graph.AddEdge("A", "B", 1.0f); // Internal link
+
+            // Cluster 2: The "Outside" world
+            graph.AddNode("C", "data");
+            graph.AddNode("D", "data");
+            graph.AddEdge("C", "D", 1.0f); // Internal link
+
+            // The Bridge: This is our expected "Egress" edge
+            graph.AddEdge("B", "C", 0.75f);
+
+            var csr = graph.CompileCsr();
+
+            // Define the boundary for Cluster 1: {A, B}
+            var clusterIndices = new HashSet<int> {
+                csr.IdToIndex["A"],
+                csr.IdToIndex["B"]
+            };
+
+            // Act
+            var boundaries = csr.GetBoundaryEdges(clusterIndices);
+
+            // Assert
+            // Because the graph is symmetric (AddEdge creates two-way links), 
+            // we expect exactly one egress edge originating from the group index.
+            Assert.Single(boundaries);
+
+            var bridge = boundaries[0];
+            Assert.Equal(csr.IdToIndex["B"], bridge.SourceIndex);
+            Assert.Equal(csr.IdToIndex["C"], bridge.TargetIndex);
+            Assert.Equal(0.75f, bridge.Weight);
+        }
     }
 }
