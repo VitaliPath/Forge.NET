@@ -7,25 +7,26 @@ namespace Forge.Graph.Persistence;
 internal static class CsrIOHandler
 {
     private const uint MagicBytes = 0x46524745; // "FRGE"
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2; // FORGE-065: Incremented for EdgeTypes support
 
     public static void WriteToStream(GraphCsr csr, Stream stream)
     {
         using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
 
-        // 1. Header: [Magic(4)] [Version(4)] [Nodes(4)] [Edges(4)]
+        // 1. Header: Updated Version
         writer.Write(MagicBytes);
         writer.Write(SchemaVersion);
         writer.Write(csr.NodeCount);
         writer.Write(csr.EdgeCount);
 
-        // 2. Direct-to-SoA Buffer Dumps
+        // 2. Direct-to-SoA Buffer Dumps (Including EdgeTypes)
         writer.Write(MemoryMarshal.AsBytes(csr.RowPtr.AsSpan()));
         writer.Write(MemoryMarshal.AsBytes(csr.ColIdx.AsSpan()));
         writer.Write(MemoryMarshal.AsBytes(csr.Weights.AsSpan()));
         writer.Write(MemoryMarshal.AsBytes(csr.LastModified.AsSpan()));
+        writer.Write(csr.EdgeTypes.AsSpan()); // Raw byte dump for SoA types
 
-        // 3. Identity Pool (Metadata)
+        // 3. Identity Pool
         foreach (var id in csr.IndexToId)
         {
             writer.Write(id);
@@ -40,8 +41,9 @@ internal static class CsrIOHandler
         if (reader.ReadUInt32() != MagicBytes) 
             throw new InvalidDataException("Invalid Magic Bytes: Not a Forge Snapshot.");
         
-        if (reader.ReadInt32() != SchemaVersion)
-            throw new InvalidDataException("Schema Mismatch: Snapshot version is incompatible.");
+        int version = reader.ReadInt32();
+        if (version != SchemaVersion)
+            throw new InvalidDataException($"Schema Mismatch: Expected v{SchemaVersion}, found v{version}.");
 
         int nodeCount = reader.ReadInt32();
         int edgeCount = reader.ReadInt32();
@@ -51,12 +53,14 @@ internal static class CsrIOHandler
         int[] colIdx = new int[edgeCount];
         float[] weights = new float[edgeCount];
         long[] lastModified = new long[edgeCount];
+        byte[] edgeTypes = new byte[edgeCount]; // New buffer
 
-        // 3. Re-hydration
+        // 3. Re-hydration (Sequential bulk reads)
         reader.Read(MemoryMarshal.AsBytes(rowPtr.AsSpan()));
         reader.Read(MemoryMarshal.AsBytes(colIdx.AsSpan()));
         reader.Read(MemoryMarshal.AsBytes(weights.AsSpan()));
         reader.Read(MemoryMarshal.AsBytes(lastModified.AsSpan()));
+        reader.Read(edgeTypes.AsSpan()); // Read the types directly
 
         // 4. Identity Mapping
         string[] indexToId = new string[nodeCount];
@@ -69,6 +73,6 @@ internal static class CsrIOHandler
             idToIndex.Add(id, i);
         }
 
-        return new GraphCsr(rowPtr, colIdx, weights, lastModified, idToIndex, indexToId);
+        return new GraphCsr(rowPtr, colIdx, weights, lastModified, edgeTypes, idToIndex, indexToId);
     }
 }

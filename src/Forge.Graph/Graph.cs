@@ -3,18 +3,25 @@ using Forge.Core;
 
 namespace Forge.Graph
 {
+    public enum RelationshipType : byte
+    {
+        Associative = 0,
+        Structural = 1
+    }
+
     public class Edge<T>
     {
         public Node<T> Target { get; set; }
         public float Weight { get; set; }
-        
         public long LastModified { get; set; } 
+        public RelationshipType Type { get; set; }
 
-        public Edge(Node<T> target, float weight, long lastModified = 0)
+        public Edge(Node<T> target, float weight, long lastModified = 0, RelationshipType type = RelationshipType.Associative)
         {
             Target = target;
             Weight = weight;
             LastModified = lastModified;
+            Type = type;
         }
     }
 
@@ -100,22 +107,31 @@ namespace Forge.Graph
         }
 
         /// <summary>
-        /// Accumulates weight into an edge. 
-        /// Creates the edge if it doesn't exist.
+        /// FORGE-065: Accumulates weight into an edge and defines its structural nature.
+        /// Structural edges (Parent -> Child) are directed, while Associative edges are symmetric.
         /// </summary>
-        /// <param name="timestamp">FORGE-0011: Optional Unix timestamp of the reinforcement.</param>
-        public void AccumulateEdgeWeight(string fromId, string toId, float delta, long timestamp = 0)
+        /// <param name="timestamp">Optional Unix timestamp of the reinforcement.</param>
+        /// <param name="type">The nature of the link: Associative (Default) or Structural.</param>
+        public void AccumulateEdgeWeight(string fromId, string toId, float delta, long timestamp = 0, RelationshipType type = RelationshipType.Associative)
         {
             if (!_nodes.TryGetValue(fromId, out var source))
                 throw new Exception($"Source node {fromId} missing.");
             if (!_nodes.TryGetValue(toId, out var target))
                 throw new Exception($"Target node {toId} missing.");
 
+            if (type == RelationshipType.Structural)
+            {
+                if (IsStructuralPath(toId, fromId))
+                {
+                    throw new InvalidOperationException($"Circular structural dependency: '{fromId}' and '{toId}' cannot have a parent/child relationship.");
+                }
+            }
+
             if (fromId == toId)
             {
                 lock (source.SyncRoot)
                 {
-                    UpdateEdgeInternal(source, target, delta, timestamp);
+                    UpdateEdgeInternal(source, target, delta, timestamp, type);
                 }
                 return;
             }
@@ -128,8 +144,12 @@ namespace Forge.Graph
             {
                 lock (second.SyncRoot)
                 {
-                    UpdateEdgeInternal(source, target, delta, timestamp);
-                    UpdateEdgeInternal(target, source, delta, timestamp);
+                    UpdateEdgeInternal(source, target, delta, timestamp, type);
+
+                    if (type == RelationshipType.Associative)
+                    {
+                        UpdateEdgeInternal(target, source, delta, timestamp, type);
+                    }
                 }
             }
         }
@@ -187,20 +207,38 @@ namespace Forge.Graph
             });
         }
 
+        private bool IsStructuralPath(string startId, string targetId, HashSet<string>? visited = null)
+        {
+            if (startId == targetId) return true;
+            visited ??= new HashSet<string>();
+            visited.Add(startId);
+
+            if (_nodes.TryGetValue(startId, out var node))
+            {
+                foreach (var edge in node.Neighbors.Where(e => e.Type == RelationshipType.Structural))
+                {
+                    if (!visited.Contains(edge.Target.Id) && IsStructuralPath(edge.Target.Id, targetId, visited))
+                        return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>
         /// FORGE-014: Core edge update logic.
         /// Assumes the caller has already acquired the necessary locks on SyncRoot.
         /// </summary>
-        private void UpdateEdgeInternal(Node<T> src, Node<T> dest, float delta, long timestamp)
+        private void UpdateEdgeInternal(Node<T> src, Node<T> dest, float delta, long timestamp, RelationshipType type)
         {
             if (src.EdgeMap.TryGetValue(dest.Id, out var existingEdge))
             {
                 existingEdge.Weight += delta;
                 existingEdge.LastModified = Math.Max(existingEdge.LastModified, timestamp);
+                if (type == RelationshipType.Structural) existingEdge.Type = type;
             }
             else
             {
-                src.EdgeMap.Add(dest.Id, new Edge<T>(dest, delta, timestamp));
+                src.EdgeMap.Add(dest.Id, new Edge<T>(dest, delta, timestamp, type));
             }
         }
 
@@ -221,9 +259,9 @@ namespace Forge.Graph
             }
         }
 
-        public void AddEdge(string fromId, string toId, float weight)
+        public void AddEdge(string fromId, string toId, float weight, RelationshipType type = RelationshipType.Associative)
         {
-            AccumulateEdgeWeight(fromId, toId, weight);
+            AccumulateEdgeWeight(fromId, toId, weight, 0, type);
         }
 
         /// <summary>
@@ -259,8 +297,8 @@ namespace Forge.Graph
         public IEnumerable<string> GetAllIds() => _nodes.Keys;
 
         /// <summary>
-        /// FORGE-057: Compiles the mutable graph into a high-performance SoA (Structure of Arrays) layout.
-        /// Uses GC.AllocateArray with pinned=true to maximize cache locality and minimize GC moves.
+        /// FORGE-065: Compiles the mutable graph into a high-performance SoA layout.
+        /// Updated to include the EdgeTypes byte buffer for structural filtering.
         /// </summary>
         public GraphCsr CompileCsr()
         {
@@ -279,9 +317,11 @@ namespace Forge.Graph
             }
             rowPtr[n] = totalEdges;
 
+            // Allocate pinned arrays for high-performance SoA
             int[] colIdx = GC.AllocateArray<int>(totalEdges, pinned: true);
             float[] weights = GC.AllocateArray<float>(totalEdges, pinned: true);
             long[] lastModified = GC.AllocateArray<long>(totalEdges, pinned: true);
+            byte[] edgeTypes = GC.AllocateArray<byte>(totalEdges, pinned: true);
 
             int edgeIdx = 0;
             for (int i = 0; i < n; i++)
@@ -292,11 +332,12 @@ namespace Forge.Graph
                     colIdx[edgeIdx] = idToIndex[edge.Target.Id];
                     weights[edgeIdx] = edge.Weight;
                     lastModified[edgeIdx] = edge.LastModified;
+                    edgeTypes[edgeIdx] = (byte)edge.Type;
                     edgeIdx++;
                 }
             }
 
-            return new GraphCsr(rowPtr, colIdx, weights, lastModified, idToIndex, indexToId);
+            return new GraphCsr(rowPtr, colIdx, weights, lastModified, edgeTypes, idToIndex, indexToId);
         }
     }
 }

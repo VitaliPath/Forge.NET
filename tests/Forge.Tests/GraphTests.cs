@@ -421,5 +421,46 @@ namespace Forge.Tests
             Assert.Equal(csr.IdToIndex["C"], bridge.TargetIndex);
             Assert.Equal(0.75f, bridge.Weight);
         }
+
+        [Fact]
+        public void StructuralEdge_Prevents_Circular_Dependencies()
+        {
+            // Arrange: Create a simple chain A -> B -> C
+            var graph = new Graph<string>();
+            graph.AddNode("A", "Namespace");
+            graph.AddNode("B", "Sub-Namespace");
+            graph.AddNode("C", "Class");
+
+            // Act: Establish valid hierarchy
+            graph.AddEdge("A", "B", 1.0f, RelationshipType.Structural);
+            graph.AddEdge("B", "C", 1.0f, RelationshipType.Structural);
+
+            // Assert: Attempting to make A a child of C should fail to maintain DAG
+            // Note: This assumes you implement a 'HasPath' check in a 'ValidateStructuralEdge' method
+            var exception = Assert.Throws<InvalidOperationException>(() => 
+            {
+                // Internal Logic: Before adding C -> A as Structural, 
+                // check if a path already exists from A -> C.
+                graph.AddEdge("C", "A", 1.0f, RelationshipType.Structural);
+            });
+
+            Assert.Contains("Circular structural dependency", exception.Message);
+        }
+
+        [Fact]
+        public void MixedMode_Associative_Edges_Allow_Cycles()
+        {
+            // Arrange: Cycles are perfectly legal for associative/semantic links
+            var graph = new Graph<string>();
+            graph.AddNode("ClassA", "data");
+            graph.AddNode("ClassB", "data");
+
+            // Act & Assert: This should NOT throw
+            graph.AddEdge("ClassA", "ClassB", 0.5f, RelationshipType.Associative);
+            graph.AddEdge("ClassB", "ClassA", 0.5f, RelationshipType.Associative);
+
+            var nodeA = graph.GetNode("ClassA");
+            Assert.Equal(RelationshipType.Associative, nodeA.Neighbors.First().Type);
+        }
     }
 }

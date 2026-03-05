@@ -25,6 +25,7 @@ namespace Forge.Graph
         public readonly int[] ColIdx;    // Destination indices (Size: E)
         public readonly float[] Weights;  // Edge gravity (Size: E)
         public readonly long[] LastModified; // Timestamps (Size: E)
+        public readonly byte[] EdgeTypes;
 
         public readonly Dictionary<string, int> IdToIndex;
         public readonly string[] IndexToId;
@@ -37,13 +38,14 @@ namespace Forge.Graph
         /// </summary>
         public Tensor WeightsAsTensor => new Tensor(1, EdgeCount, Weights);
 
-        public GraphCsr(int[] rowPtr, int[] colIdx, float[] weights, long[] lastModified,
-                        Dictionary<string, int> idToIndex, string[] indexToId)
+        public GraphCsr(int[] rowPtr, int[] colIdx, float[] weights, long[] lastModified, 
+                        byte[] edgeTypes, Dictionary<string, int> idToIndex, string[] indexToId)
         {
             RowPtr = rowPtr;
             ColIdx = colIdx;
             Weights = weights;
             LastModified = lastModified;
+            EdgeTypes = edgeTypes;
             IdToIndex = idToIndex;
             IndexToId = indexToId;
         }
