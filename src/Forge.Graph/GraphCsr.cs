@@ -6,6 +6,8 @@ using System.Runtime.InteropServices;
 using System.Linq;
 using System.Threading.Tasks;
 using Forge.Graph.Persistence;
+using Forge.Graph.Algorithms;
+
 
 namespace Forge.Graph
 {
@@ -132,6 +134,16 @@ namespace Forge.Graph
                 }
             }
         }
+
+        #endregion
+
+        #region Algorithms (FORGE-066)
+
+        /// <summary>
+        /// Calculates the centrality (importance) of nodes using SIMD-accelerated Power Iteration.
+        /// Identifies "God Objects" and architectural bottlenecks.
+        /// </summary>
+        public float[] CalculateCentrality() => CentralityKernel.Calculate(this);
 
         #endregion
 
