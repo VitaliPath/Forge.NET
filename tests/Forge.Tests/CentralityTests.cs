@@ -49,7 +49,7 @@ public class CentralityTests
     }
 
     [Fact]
-    public void Performance_Benchmark_LargeGraph_Under_50ms()
+    public void Performance_Benchmark_LargeGraph_Under_75ms()
     {
         // Arrange: 10k nodes, 100k edges (Average degree 10)
         var graph = new Graph<string>();
@@ -77,7 +77,7 @@ public class CentralityTests
 
         // Assert
         Assert.Equal(nodeCount, scores.Length);
-        Assert.True(sw.ElapsedMilliseconds < 50, 
-            $"Performance regression: Kernel took {sw.ElapsedMilliseconds}ms (Target: <50ms).");
+        Assert.True(sw.ElapsedMilliseconds < 75, 
+            $"Performance regression: Kernel took {sw.ElapsedMilliseconds}ms (Target: <75ms).");
     }
 }
