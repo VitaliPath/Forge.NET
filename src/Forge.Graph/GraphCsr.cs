@@ -137,13 +137,19 @@ namespace Forge.Graph
 
         #endregion
 
-        #region Algorithms (FORGE-066)
+        #region Algorithms
 
         /// <summary>
         /// Calculates the centrality (importance) of nodes using SIMD-accelerated Power Iteration.
-        /// Identifies "God Objects" and architectural bottlenecks.
         /// </summary>
         public float[] CalculateCentrality() => CentralityKernel.Calculate(this);
+
+        /// <summary>
+        /// FORGE-067: Calculates the dependency depth (Architectural Elevation) from entry points.
+        /// Defaults to a penalty of 3 for Associative links to prioritize Structural hierarchy.
+        /// </summary>
+        public int[] CalculateDependencyDepth(int[] roots, int associativePenalty = 3) 
+            => DependencyDepthWalker.Calculate(this, roots, associativePenalty);
 
         #endregion
 
