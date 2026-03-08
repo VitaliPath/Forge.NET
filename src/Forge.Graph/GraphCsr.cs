@@ -40,6 +40,96 @@ namespace Forge.Graph
         /// </summary>
         public Tensor WeightsAsTensor => new Tensor(1, EdgeCount, Weights);
 
+        public GraphCsr Slice(Func<int, bool> predicate)
+        {
+            // 1. Identify which nodes stay and map their indices
+            int nodeCount = this.NodeCount;
+            int[] oldToNew = new int[nodeCount];
+            Array.Fill(oldToNew, -1);
+            int newCount = 0;
+            
+            for (int i = 0; i < nodeCount; i++)
+            {
+                if (predicate(i)) oldToNew[i] = newCount++;
+            }
+
+            if (newCount == 0) return new GraphCsr(new int[1], Array.Empty<int>(), 
+                Array.Empty<float>(), Array.Empty<long>(), Array.Empty<byte>(), 
+                new Dictionary<string, int>(), Array.Empty<string>());
+
+            // 2. Build the new Identity Map
+            string[] newIndexToId = new string[newCount];
+            var newIdToIndex = new Dictionary<string, int>(newCount, StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < nodeCount; i++)
+            {
+                if (oldToNew[i] != -1)
+                {
+                    int nIdx = oldToNew[i];
+                    newIndexToId[nIdx] = IndexToId[i];
+                    newIdToIndex.Add(IndexToId[i], nIdx);
+                }
+            }
+
+            // --- CAPTURE MEMBERS TO LOCALS (FIX FOR CS1673) ---
+            var rowPtr = this.RowPtr;
+            var colIdx = this.ColIdx;
+            var weights = this.Weights;
+            var lastModified = this.LastModified;
+            var edgeTypes = this.EdgeTypes;
+
+            // 3. Parallel count of retained edges
+            int[] newEdgeCounts = new int[newCount];
+            Parallel.For(0, nodeCount, Forge.Core.ForgeConcurrency.DefaultOptions, i =>
+            {
+                int localNewIdx = oldToNew[i];
+                if (localNewIdx == -1) return;
+
+                int start = rowPtr[i];
+                int end = rowPtr[i + 1];
+                int count = 0;
+                for (int k = start; k < end; k++)
+                {
+                    if (oldToNew[colIdx[k]] != -1) count++;
+                }
+                newEdgeCounts[localNewIdx] = count;
+            });
+
+            int[] newRowPtr = new int[newCount + 1];
+            for (int i = 0; i < newCount; i++) newRowPtr[i + 1] = newRowPtr[i] + newEdgeCounts[i];
+
+            // 4. Project Buffers
+            int totalNewEdges = newRowPtr[newCount];
+            var buffers = CsrBufferFactory.Allocate(newCount, totalNewEdges);
+
+            Parallel.For(0, nodeCount, Forge.Core.ForgeConcurrency.DefaultOptions, i =>
+            {
+                int nIdx = oldToNew[i];
+                if (nIdx == -1) return;
+
+                int oldStart = rowPtr[i];
+                int oldEnd = rowPtr[i + 1];
+                int writePtr = newRowPtr[nIdx];
+
+                for (int k = oldStart; k < oldEnd; k++)
+                {
+                    int oldTarget = colIdx[k];
+                    int newTarget = oldToNew[oldTarget];
+
+                    if (newTarget != -1)
+                    {
+                        buffers.colIdx[writePtr] = newTarget;
+                        buffers.weights[writePtr] = weights[k];
+                        buffers.lastModified[writePtr] = lastModified[k];
+                        buffers.edgeTypes[writePtr] = edgeTypes[k];
+                        writePtr++;
+                    }
+                }
+            });
+
+            return new GraphCsr(newRowPtr, buffers.colIdx, buffers.weights, 
+                buffers.lastModified, buffers.edgeTypes, newIdToIndex, newIndexToId);
+        }
+
         /// <summary>
         /// FORGE-068: Calculates the Jaccard Similarity between the neighbor sets of two nodes.
         /// Uses a two-finger linear scan over pre-sorted CSR adjacency lists.

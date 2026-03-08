@@ -532,7 +532,7 @@ namespace Forge.Tests
             graph.AddNode("B", "b");
             graph.AddNode("TargetA", "t");
             graph.AddNode("TargetB", "t");
-            
+
             graph.AddEdge("A", "TargetA", 1.0f);
             graph.AddEdge("B", "TargetB", 1.0f);
 
@@ -540,6 +540,38 @@ namespace Forge.Tests
             float similarity = csr.CalculateNeighborSimilarity(csr.IdToIndex["A"], csr.IdToIndex["B"]);
 
             Assert.Equal(0.0f, similarity);
+        }
+        
+        [Fact]
+        public void Slice_Correctly_Extracts_High_Elevation_Subgraph()
+        {
+            // Arrange: Linear chain A -> B -> C
+            var graph = new Graph<string>();
+            graph.AddNode("A", "AppLayer");
+            graph.AddNode("B", "Service");
+            graph.AddNode("C", "Core");
+            
+            graph.AddEdge("A", "B", 1.0f, RelationshipType.Structural);
+            graph.AddEdge("B", "C", 1.0f, RelationshipType.Structural);
+
+            var csr = graph.CompileCsr();
+
+            // Act: Slice out the App and Service layers (Indices 0 and 1)
+            // This simulates slicing by Depth or Tier
+            var sliced = csr.Slice(idx => idx < 2);
+
+            // Assert
+            Assert.Equal(2, sliced.NodeCount);
+            Assert.Equal(1, sliced.EdgeCount); // Only A -> B remains
+            
+            Assert.True(sliced.IdToIndex.ContainsKey("A"));
+            Assert.True(sliced.IdToIndex.ContainsKey("B"));
+            Assert.False(sliced.IdToIndex.ContainsKey("C"));
+
+            // Verify edge target mapping re-hydration
+            int idxA = sliced.IdToIndex["A"];
+            int edgeTarget = sliced.ColIdx[sliced.RowPtr[idxA]];
+            Assert.Equal(sliced.IdToIndex["B"], edgeTarget);
         }
     }
 }
