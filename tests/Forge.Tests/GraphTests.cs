@@ -462,5 +462,84 @@ namespace Forge.Tests
             var nodeA = graph.GetNode("ClassA");
             Assert.Equal(RelationshipType.Associative, nodeA.Neighbors.First().Type);
         }
+
+        [Fact]
+        public void CalculateNeighborSimilarity_Returns_Correct_Jaccard_Index()
+        {
+            // Arrange: Create a graph where nodes share specific neighbors
+            var graph = new Graph<string>();
+            
+            // Shared neighbors
+            graph.AddNode("Shared_1", "n");
+            graph.AddNode("Shared_2", "n");
+            
+            // Unique to A
+            graph.AddNode("Unique_A", "n");
+            
+            // Unique to B
+            graph.AddNode("Unique_B", "n");
+
+            // Subject Nodes
+            graph.AddNode("A", "root");
+            graph.AddNode("B", "root");
+
+            // A neighbors: {Shared_1, Shared_2, Unique_A} (Size 3)
+            graph.AddEdge("A", "Shared_1", 1.0f);
+            graph.AddEdge("A", "Shared_2", 1.0f);
+            graph.AddEdge("A", "Unique_A", 1.0f);
+
+            // B neighbors: {Shared_1, Shared_2, Unique_B} (Size 3)
+            graph.AddEdge("B", "Shared_1", 1.0f);
+            graph.AddEdge("B", "Shared_2", 1.0f);
+            graph.AddEdge("B", "Unique_B", 1.0f);
+
+            var csr = graph.CompileCsr();
+            int idxA = csr.IdToIndex["A"];
+            int idxB = csr.IdToIndex["B"];
+
+            // Act
+            float similarity = csr.CalculateNeighborSimilarity(idxA, idxB);
+
+            // Assert
+            // Intersection = {Shared_1, Shared_2} (Size 2)
+            // Union = {Shared_1, Shared_2, Unique_A, Unique_B} (Size 4)
+            // Jaccard = 2 / 4 = 0.5
+            Assert.Equal(0.5f, similarity, precision: 5);
+        }
+
+        [Fact]
+        public void CalculateNeighborSimilarity_Identical_Neighbors_Returns_One()
+        {
+            var graph = new Graph<string>();
+            graph.AddNode("Target", "t");
+            graph.AddNode("A", "a");
+            graph.AddNode("B", "b");
+            
+            graph.AddEdge("A", "Target", 1.0f);
+            graph.AddEdge("B", "Target", 1.0f);
+
+            var csr = graph.CompileCsr();
+            float similarity = csr.CalculateNeighborSimilarity(csr.IdToIndex["A"], csr.IdToIndex["B"]);
+
+            Assert.Equal(1.0f, similarity);
+        }
+
+        [Fact]
+        public void CalculateNeighborSimilarity_Disjoint_Neighbors_Returns_Zero()
+        {
+            var graph = new Graph<string>();
+            graph.AddNode("A", "a");
+            graph.AddNode("B", "b");
+            graph.AddNode("TargetA", "t");
+            graph.AddNode("TargetB", "t");
+            
+            graph.AddEdge("A", "TargetA", 1.0f);
+            graph.AddEdge("B", "TargetB", 1.0f);
+
+            var csr = graph.CompileCsr();
+            float similarity = csr.CalculateNeighborSimilarity(csr.IdToIndex["A"], csr.IdToIndex["B"]);
+
+            Assert.Equal(0.0f, similarity);
+        }
     }
 }

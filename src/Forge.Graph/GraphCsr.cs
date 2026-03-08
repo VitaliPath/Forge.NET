@@ -40,6 +40,59 @@ namespace Forge.Graph
         /// </summary>
         public Tensor WeightsAsTensor => new Tensor(1, EdgeCount, Weights);
 
+        /// <summary>
+        /// FORGE-068: Calculates the Jaccard Similarity between the neighbor sets of two nodes.
+        /// Uses a two-finger linear scan over pre-sorted CSR adjacency lists.
+        /// Complexity: O(deg(u) + deg(v))
+        /// </summary>
+        public float CalculateNeighborSimilarity(int u, int v)
+        {
+            if (u < 0 || u >= NodeCount || v < 0 || v >= NodeCount)
+                return 0f;
+
+            int startU = RowPtr[u];
+            int endU = RowPtr[u + 1];
+            int startV = RowPtr[v];
+            int endV = RowPtr[v + 1];
+
+            int countU = endU - startU;
+            int countV = endV - startV;
+
+            if (countU == 0 && countV == 0) return 0f;
+
+            int intersection = 0;
+            int pU = startU;
+            int pV = startV;
+
+            // Two-Finger Linear Scan
+            while (pU < endU && pV < endV)
+            {
+                int valU = ColIdx[pU];
+                int valV = ColIdx[pV];
+
+                if (valU == valV)
+                {
+                    intersection++;
+                    pU++;
+                    pV++;
+                }
+                else if (valU < valV)
+                {
+                    pU++;
+                }
+                else
+                {
+                    pV++;
+                }
+            }
+
+            // Jaccard Formula: |A ∩ B| / |A ∪ B|
+            // |A ∪ B| = |A| + |B| - |A ∩ B|
+            int union = countU + countV - intersection;
+            
+            return (float)intersection / union;
+        }
+
         public GraphCsr(int[] rowPtr, int[] colIdx, float[] weights, long[] lastModified, 
                         byte[] edgeTypes, Dictionary<string, int> idToIndex, string[] indexToId)
         {
