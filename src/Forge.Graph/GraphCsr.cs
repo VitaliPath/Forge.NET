@@ -201,8 +201,15 @@ namespace Forge.Graph
         /// FORGE-067: Calculates the dependency depth (Architectural Elevation) from entry points.
         /// Defaults to a penalty of 3 for Associative links to prioritize Structural hierarchy.
         /// </summary>
-        public int[] CalculateDependencyDepth(int[] roots, int associativePenalty = 3) 
+        public int[] CalculateDependencyDepth(int[] roots, int associativePenalty = 3)
             => DependencyDepthWalker.Calculate(this, roots, associativePenalty);
+            
+        /// <summary>
+        /// FORGE-069: Calculates the narrative flow rank for a subset of nodes.
+        /// Useful for ordering project documentation chapters.
+        /// </summary>
+        public int[] CalculateFlowRank(int[] nodeSubset) 
+            => FlowRankingKernel.Calculate(this, nodeSubset);
 
         #endregion
 
